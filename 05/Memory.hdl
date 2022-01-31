@@ -1,0 +1,61 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/05/Memory.hdl
+
+/**
+ * The complete address space of the Hack computer's memory,
+ * including RAM and memory-mapped I/O. 
+ * The chip facilitates read and write operations, as follows:
+ *     Read:  out(t) = Memory[address(t)](t)
+ *     Write: if load(t-1) then Memory[address(t-1)](t) = in(t-1)
+ * In words: the chip always outputs the value stored at the memory 
+ * location specified by address. If load==1, the in value is loaded 
+ * into the memory location specified by address. This value becomes 
+ * available through the out output from the next time step onward.
+ * Address space rules:
+ * Only the upper 16K+8K+1 words of the Memory chip are used. 
+ * Access to address>0x6000 is invalid. Access to any address in 
+ * the range 0x4000-0x5FFF results in accessing the screen memory 
+ * map. Access to address 0x6000 results in accessing the keyboard 
+ * memory map. The behavior in these addresses is described in the 
+ * Screen and Keyboard chip specifications given in the book.
+ */
+
+CHIP Memory {
+    IN in[16], load, address[15];
+    OUT out[16];
+
+    PARTS:
+    // address[15] indica qual segmento de memória usar (16K ou 8K ou 1)	
+	
+	DMux8Way(in=true, sel=address[12..14], a=loada, b=loadb, c=loadc, d=loadd, e=Load4K1, f=Load4K2, g=loadg, h=loadh);
+	Or(a=loada,b=loadb,out=loadAB);
+	Or(a=loadc,b=loadd,out=loadCD);
+	Or(a=loadAB,b=loadCD,out=loadABCD);
+	Or(a=loadg,b=loadh,out=LoadKeyBoard);
+	
+	// carrega a RAM de 16k
+	And(a=load,b=loadABCD,out=getLoad16K);
+	RAM16K(in=in,load=getLoad16K,address=address[0..13],out=Out16k);
+	
+	// carrega a RAM de 4k1
+	And(a=load,b=Load4K1,out=getLoad4K1);
+	RAM4K(in=in,load=getLoad4K1,address=address[0..11],out=Out4K1);
+	
+	// carrega a RAM de 4k2
+	And(a=load,b=Load4K2,out=getLoad4K2);
+	RAM4K(in=in,load=getLoad4K2,address=address[0..11],out=Out4K2);	
+	
+	// carrega o registro do teclado
+	And(a=load,b=LoadKeyBoard,out=getLoadKeyboard);
+	Register(in=in,load=getLoadKeyboard,out=OutKeyBoard);
+	
+	// escolhe o resultado, baseado nas
+	Mux8Way16(a=Out16k,b=Out16k,c=Out16k,d=Out16k,e=Out4K1,f=Out4K2,g=OutKeyBoard,h=OutKeyBoard,sel[2]=address[14],sel[1]=address[13],sel[2]=address[12],out=out);
+}
+
+//	if add[15] = 0, add -> ram16k
+//		elsif add[14] = 1, add -> RegKeyboard
+//			elsif add[13] = 0, add -> ramk4k_2
+//				elsif add[13] = 1, add -> ramk4k_1
