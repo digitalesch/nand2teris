@@ -79,8 +79,8 @@ class Stack():
 
         if token.segment_pointer in ['STATIC']:
             final_code += [
-                f'// Generates STATIC variable {token.file}.{token.variable}',
-                f'@{token.file}.{token.variable}',
+                f'// Generates STATIC variable {self.file_name}.{token.variable}',
+                f'@{self.file_name}.{token.variable}',
                 'D=M',
                 f'@{stack_pointer}',
                 'A=M',
@@ -172,11 +172,11 @@ class Stack():
         # *filename.var_name = *SP--; *SP-- 
         if token.segment_pointer in ['STATIC']:
             final_code += [
-                f'// Pop from stack into STATIC variable: {token.file}.{token.variable}',
+                f'// Pop from stack into STATIC variable: {self.file_name}.{token.variable}',
                 f'@{stack_pointer}',                    # SP
                 'A=M-1',                                # A=*SP--
                 'D=M',                                  # D=*SP--
-                f'@{token.file}.{token.variable}',  # get static variable defined by {file_name}.{token.variable}
+                f'@{self.file_name}.{token.variable}',  # get static variable defined by {file_name}.{token.variable}
                 'M=D'                                   # *filename.var_name = D
             ]
 
@@ -280,7 +280,7 @@ class Stack():
     '''
         creates AND / OR statements
     '''
-    def create_and_or_statement(self, token: Token) -> list:
+    def and_or_statement(self, token: Token) -> list:
         final_code = []
         stack_pointer = getattr(self,'SP').index
         # dict index is equal to dictionary defining operations
@@ -346,29 +346,6 @@ class Stack():
         ]
 
     '''
-        generates bootstrap code
-    '''
-    def create_bootstrap_statment(self) -> list:
-        stack_pointer   = getattr(self,'SP')
-        arg_pointer     = getattr(self,'ARG')
-        lcl_pointer     = getattr(self,'LCL')
-        this_pointer    = getattr(self,'THIS')
-        that_pointer    = getattr(self,'THAT')
-        saved_frame     = [stack_pointer,lcl_pointer,arg_pointer,this_pointer,that_pointer]            
-        final_code      = []
-
-        for pointer in saved_frame:
-            final_code += [
-                f'// Starts bootstrap code by setting {pointer.index} to value {pointer.memory}',
-                f'@{pointer.memory}',
-                'D=A',                                                      # D=Initialized memory value
-                f'@{pointer.index}',                                        # A=SP
-                'M=D',                                                      # SP=Memory value            
-            ]
-
-        return final_code
-
-    '''
         generates function statement
         command: function <function_name> <number_of_parameters>
         rule: 
@@ -393,14 +370,23 @@ class Stack():
 
         final_code = []
         
-        final_code = [
-            f'// Creates code for {token.segment_pointer} function',
-            f'({token.segment_pointer})'                                                    # sets start LABEL of function, when call <function_name> is used
-        ]
-        
+        # checks if initial function is needed, else it executes it
+        if token.segment_pointer != 'Sys.init':
+            final_code = [
+                f'// Creates function related code for {token.segment_pointer}',
+                f'@END_FUNCTION_{token.segment_pointer}',                                       # defines JMP condition so code isn't executed
+                '1;JMP',                                                                        # unconditional JMP
+                f'({token.segment_pointer})'                                                    # sets start LABEL of function, when call <function_name> is used
+            ]
+        else:
+            final_code = [
+                f'// Creates code for {token.segment_pointer} function',
+                f'({token.segment_pointer})'                                                    # sets start LABEL of function, when call <function_name> is used
+            ]
+
         # creates rule that push to stack nArgs (n+1) times 0 constant for LCL segment
         # based on function definition: function <functioName> <localVariables>
-        for i in range(int(token.variable)):
+        for i in range(self.FUNCTION_DEFINITION[token.segment_pointer]):
             final_code += self.push_to_segement(
                 Token(
                     command='push constant 0',
@@ -426,15 +412,41 @@ class Stack():
         that_pointer    = getattr(self,'THAT').index
         saved_frame     = [lcl_pointer,arg_pointer,this_pointer,that_pointer]
         final_code      = []
-        
-        # temp, save return address to stack, will be saved in @13, since RAM[13~15] are temp registers
+        '''
+        # creates rule that push to stack nArgs (n+1) times 0 constant, 
+        # even if function main 0 is called, one argument must be pushed so return can overwrite arg0 as return value        
+        for i in range(int(token.variable)+1):
+            final_code += self.push_to_segement(
+                Token(
+                    command='push constant 0',
+                    tokens=['push','constant','0'],
+                    segment_pointer='CONSTANT',
+                    command_type=1,
+                    variable='0'
+                )
+            )
+        '''  
+
+        # creates arg0 if function has no parameters, so return logic has someplace to set returned value
+        if token.variable == '0':
+            final_code += self.push_to_segement(
+                Token(
+                    command='push constant 0',
+                    tokens=['push','constant','0'],
+                    segment_pointer='CONSTANT',
+                    command_type=1,
+                    variable='0'
+                )
+            )      
+
+        # temp, save return address to stack
         final_code += [                
-            f'// Saves return address to stack',
-            f'@{token.segment_pointer}$ret.{self.LABEL}',                                           # A=returnAddress
-            'D=A',                                                                              # D=*pointer
-            f'@{stack_pointer}',                                                                # A=SP
-            'A=M',                                                                              # A=*SP
-            'M=D',                                                                              # RAM[*SP]=*SP
+                f'// Saves return address to stack',
+                f'@{token.segment_pointer}${self.LABEL}',                                       # A=returnAddress
+                'D=A',                                                                          # D=*pointer
+                f'@{stack_pointer}',                                                            # A=SP
+                'A=M',                                                                          # A=*SP
+                'M=D',                                                                          # RAM[*SP]=*SP
         ]
 
         final_code += self.update_sp_code(1)                                                    # SP = *SP+1
@@ -451,6 +463,8 @@ class Stack():
 
             final_code += self.update_sp_code(1)                                                # SP = *SP+1
 
+        args_test = 6 if token.variable == '0' else 5
+
         # sets ARG pointer to SP-5-nArgs
         final_code += [
             f'// Code to set ARG pointer',
@@ -458,7 +472,7 @@ class Stack():
             'D=M',                                                                              # A=*SP
             f'@{token.variable}',                                                               # A=token.variable (nArgs)
             'D=D-A',                                                                            # D=SP-nArgs
-            f'@5',                                                                              # A=savedFrameSize
+            f'@{args_test}',                                                                    # A=savedFrameSize
             'D=D-A',                                                                            # D=SP-nArgs-savedFrameSize
             f'@{arg_pointer}',                                                                  # A=ARG
             'M=D'                                                                               # RAM[ARG]=SP-nArgs
@@ -473,12 +487,29 @@ class Stack():
             'M=D'                                                                               # RAM[LCL]=SP
         ]
 
+        '''
+        # creates rule that push to stack nArgs (n+1) times 0 constant for LCL segment
+        # based on function definition: function <functioName> <localVariables>
+        for i in range(self.FUNCTION_DEFINITION[token.segment_pointer]):
+            final_code += self.push_to_segement(
+                Token(
+                    command='push constant 0',
+                    tokens=['push','constant','0'],
+                    segment_pointer='CONSTANT',
+                    command_type=1,
+                    variable='0'
+                )
+            )
+        '''
+
         # jumps to function code, no need to create label when return, because return address is saved
         final_code += [
             f'@{token.segment_pointer}',                                                        # A=LABEL_NAME
             '1;JMP',                                                                            # jump to function code
-            f'({token.segment_pointer}$ret.{self.LABEL})'
+            f'({token.segment_pointer}${self.LABEL})'
         ]
+
+        #final_code += self.update_sp_code(0)                                                    # SP = *SP-1, to remove SavedFrameReturnAddress
 
         self.LABEL += 1
 
@@ -493,30 +524,6 @@ class Stack():
         saved_frame     = [lcl_pointer,arg_pointer,this_pointer,that_pointer]
         final_code      = []        
 
-        # will be saved in R13, since RAM[13-15] are temp registers, instead of @endFrame which uses static segment
-        final_code += [
-            '// Creates endFrame static variable',
-            f'@{lcl_pointer}',                                                              # A=LCL
-            'D=M',                                                                          # D=*LCL
-            #f'@endFrame',                                                                   # A=SP
-            '@13',                                                                          # A=R13
-            'M=D',                                                                          # SP=*LCL
-        ]
-
-        # will be saved in R14, since RAM[13-15] are temp registers, instead of @endFrame which uses static segment
-        final_code += [
-            '// Creates retAddr static variable',
-            #f'@endFrame',                                                                   # A=endFrame
-            '@13',                                                                          # A=R13
-            'D=M',                                                                          # D=*endFrame
-            '@5',                                                                           # A=5
-            'A=D-A',                                                                        # A=*endFrame-6
-            'D=M',                                                                          # D=*(endFrame-6)
-            '@14',                                                                          # A=R14
-            #f'@retAddr',                                                                    # A=SP
-            'M=D',                                                                          # SP=*LCL
-        ]
-
         # creates rule that pops stack to argument 0
         final_code += self.pop_from_stack(
             Token(
@@ -527,41 +534,38 @@ class Stack():
                 variable='0'
             )
         )
-
-        # SP = *ARG+1
+        
+        # SP = LCL, because its the LCL is after the saved frame
         final_code += [
-            '// Changes SP value to *(ARG+1) value',
-            f'@{arg_pointer}',                                                              # A=ARG
-            'D=M',                                                                          # D=*ARG
+            '// Changes SP value to LCL value',
+            f'@{lcl_pointer}',                                                              # A=LCL
+            'D=M',                                                                          # D=*LCL
             f'@{stack_pointer}',                                                            # A=SP
-            'M=D+1',                                                                        # SP=*ARG+1
-        ] 
-
-        # returns saved frame to stack and jmps to saved address
-        for pointer in saved_frame:
-            final_code += [
-                f'// Code to return saved pointer {pointer} to original positions on stack',
-                #f'@endFrame',                                                               # A=endFrame
-                '@13',                                                                      # A=R13 == endFrame
-                'D=M',                                                                      # D=endFrame
-                f'@{5-pointer}',                                                            # A=pointerIndex
-                'D=D-A',                                                                    # D=endFrame-pointerIndex
-                f'@{5-pointer}',                                                            # A=pointerIndex
-                'A=D',                                                                      # D=pointer                
-                'D=M',                                                                      # D=*pointer
-                f'@{pointer}',                                                              # A=pointerIndex
-                'M=D',                                                                      # D=pointer
-            ]
-
-        # Jumps to retAddr
-        final_code += [
-            '// Jumps to retAddr stored in static variable',
-            #f'@retAddr',                                                                    # A=retAddr
-            '@14',                                                                          # A=R14 == retAddr
-            'A=M',                                                                          # D=*ARG
-            '1;JMP'                                                                         # Jump to retAddr
+            'M=D',                                                                          # SP=*LCL
         ]
 
+        # returns saved frame to stack and jmps to saved address
+        for pointer in saved_frame[::-1]:
+            final_code += [
+                f'// Code to return saved frame to original positions on stack',
+                f'@{stack_pointer}',                                                            # A=SP
+                'A=M-1',                                                                        # A=*SP--
+                'D=M',                                                                          # D=*SP--
+                f'@{pointer}',                                                                  # A=pointer
+                'M=D',                                                                          # D=*pointer                
+            ]
+
+            final_code += self.update_sp_code(0)                                                # SP = *SP-1
+        
+        # jmps to saved address
+        final_code += [
+            f'// Jumps to saved frame address',
+            f'@{stack_pointer}',                                                                # A=SP
+            'AM=M-1',                                                                           # A=*SP--;SP=SP--
+            'A=M',                                                                              # A=SavedFrameReturnAddress
+            '1;JMP'                                                                             # Unconditional jump
+        ]
+        
         return final_code
 
     '''
@@ -574,6 +578,17 @@ class Stack():
         return [
             '// Creates pass through code label, for function definition only',
             f'(END_FUNCTION_{return_label})',                                                # creates end_function label, so code isn't executed when defined
+        ]
+
+    '''
+        generates end loop
+    '''
+    def create_end_loop(self) -> list:
+        return [
+            '// Creates program end loop'
+            '\n(END_PROGRAM_LOOP)\n',
+            '@END_PROGRAM_LOOP\n',
+            'A;JMP\n'
         ]
 
     def generate_operation(self, token: Token) -> list:
@@ -596,9 +611,9 @@ class Stack():
         if token.command_type == 7:                 # negate
             final_code += self.create_negate_not_statement(token)
         if token.command_type == 8:                 # and
-            final_code += self.create_and_or_statement(token)
+            final_code += self.and_or_statement(token)
         if token.command_type == 9:                 # or
-            final_code += self.create_and_or_statement(token)
+            final_code += self.and_or_statement(token)
         if token.command_type == 10:                # not
             final_code += self.create_negate_not_statement(token)
         if token.command_type == 11:                # label
