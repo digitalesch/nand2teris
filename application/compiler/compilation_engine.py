@@ -30,7 +30,6 @@ class CompilationEngine():
 
         return token
 
-
     def is_terminal_element(self, lex_token: LexicToken):        
         return True if lex_token.type in ['keyword','symbol','integerConstant','stringConstant','identifier'] else False
 
@@ -44,19 +43,48 @@ class CompilationEngine():
         if self.is_terminal_element:
             return lex_token
 
+    def return_xml_tag(self, lex_token):
+        return f'<{lex_token.type}> {lex_token.value} </{lex_token.type}>'
+
     def compare_token(self, input: LexicToken, expectation: LexicToken):
-        return any([input.type == expectation.type, input.value == expectation.value])
+        _tmpLexToken = LexicToken(input.type,input.value)
+        
+        if expectation.type == True:
+            _tmpLexToken.type = True
+        if expectation.value == True:
+            _tmpLexToken.value = True
+        if all([_tmpLexToken.type == expectation.type, _tmpLexToken.value == expectation.value]):
+            return input
+        
+        return 
 
     # a ideia é diferente aqui, só precisa compilar os termos que vai achando, não comparar com a gramática em si
     def compile_class_statement(self):
         return [
-            self.compare_token(self.eat_token(),LexicToken(type='keyword',value='class')),
-            #self.compile_var_class_dec(code_tokens[1])
+            self.return_xml_tag(self.compare_token(self.eat_token(),LexicToken(type='keyword',value='class'))),
+            self.return_xml_tag(self.compile_terminal_element(self.eat_token())),
+            self.return_xml_tag(self.compare_token(self.eat_token(),LexicToken(type='symbol',value='{'))),
+            self.compile_var_class_dec(),
+            self.return_xml_tag(self.compare_token(self.eat_token(),LexicToken(type='symbol',value='}'))),
         ]
 
-    def compile_var_class_dec(self, code_tokens):
+    def compile_n_rules(self):
         pass
 
+    def compile_or_token(self, lex_token: LexicToken, possible_values: list):
+        for item in possible_values:
+            if self.compare_token(lex_token,LexicToken(type=item.type,value=item.value)):
+                return lex_token
+        
+        #raise Exception('Teste')
+
+    def compile_var_class_dec(self):
+        return [
+            self.return_xml_tag(self.compile_or_token(self.eat_token(), [LexicToken(type='keyword',value='static'),LexicToken(type='keyword',value='field')])),
+            self.return_xml_tag(self.compile_or_token(self.eat_token(), [LexicToken(type='keyword',value='int'),LexicToken(type='keyword',value='char'),LexicToken(type='keyword',value='boolean')])),
+            self.return_xml_tag(self.compare_token(self.eat_token(),LexicToken(type='identifier',value=True))),
+            self.return_xml_tag(self.compare_token(self.eat_token(),LexicToken(type='symbol',value=';'))),
+        ]
 
 def main():
     arguments_list = [
@@ -78,6 +106,8 @@ def main():
     # Parses ".jack" files into XML format
     parsed_tokens.parse_files()
 
+    print(f'{os.path.join(os.getcwd(),args.file_path)}/MainTokens.xml')
+
     tree = ET.parse(f'{os.path.join(os.getcwd(),args.file_path)}/MainTokens.xml')
 
     ce = CompilationEngine(tree)
@@ -87,6 +117,8 @@ def main():
     for token in ce.tokens:
         print(token,ce.is_terminal_element(token))
     #print([ce.is_terminal_element(token) for token in ce.tokens])
+
+    print(ce.compile_class_statement())
 
 if __name__ == "__main__":
     main()
