@@ -14,7 +14,7 @@ class LexicToken():
 @dataclass
 class CompilationEngine():
     xml_tree: ET
-    current_token : int = 0
+    current_token_index : int = 0
 
     def __post_init__(self):
         self.tokens = self.create_tokens()
@@ -23,9 +23,11 @@ class CompilationEngine():
         return [LexicToken(tag.tag, tag.text.strip()) for tag in self.xml_tree.iter() if tag.tag != 'tokens']
 
     def eat_token(self) -> None:
-        token = self.tokens[self.current_token]
-        self.current_token += 1
-
+        token = None
+        if self.current_token_index < len(self.tokens):
+            token = self.tokens[self.current_token_index]
+            self.current_token_index += 1
+        print(f'current token: {token}')
         return token
 
     def is_terminal_element(self, lex_token: LexicToken):        
@@ -36,53 +38,165 @@ class CompilationEngine():
             return lex_token
         else:
             pass
-
-    def compile_terminal_element(self, lex_token: LexicToken):
-        if self.is_terminal_element:
-            return lex_token
-
+    
     def return_xml_tag(self, lex_token):
         return f'<{lex_token.type}> {lex_token.value} </{lex_token.type}>'
 
     def compare_token(self, input: LexicToken, expectation: LexicToken):
-        _tmpLexToken = LexicToken(input.type,input.value)
-        
-        if expectation.type == True:
-            _tmpLexToken.type = True
-        if expectation.value == True:
-            _tmpLexToken.value = True
-        if all([_tmpLexToken.type == expectation.type, _tmpLexToken.value == expectation.value]):
+        print(input, expectation)
+        if any([input.type == expectation.type, input.value == expectation.value]):
+            #print('teste')
             return input
-        
-        return 
+        else:
+            print('teste2')
 
     # a ideia é diferente aqui, só precisa compilar os termos que vai achando, não comparar com a gramática em si
     def compile_class_statement(self):
         return [
             self.return_xml_tag(self.compare_token(self.eat_token(),LexicToken(type='keyword',value='class'))),
-            self.return_xml_tag(self.compile_terminal_element(self.eat_token())),
+            #self.return_xml_tag(self.compare_token(self.eat_token(),LexicToken(type='symbol',value='{'))),
+            #self.compile_var_class_dec(),
+            #self.return_xml_tag(self.compare_token(self.eat_token(),LexicToken(type='symbol',value='}'))),
+        ]
+
+    def compile_statements(self):
+        statements = []
+        while 1:
+            current_token = self.eat_token()
+            print(f'Statement token is {current_token}')
+            if current_token.value == 'let':
+                statements += [
+                    '<letStatment>',
+                    self.return_xml_tag(current_token),
+                    self.compile_let_statement(),
+                    '</letStatment>',
+                ]
+            if current_token.value == 'if':
+                statements += [
+                    '<ifStatement>',
+                    self.return_xml_tag(current_token),
+                    self.compile_if_statement(),
+                    '</ifStatement>',
+                ]
+            if current_token.value == 'while':
+                statements += [
+                    '<whileStatment>',
+                    self.return_xml_tag(current_token),
+                    self.compile_while_statement(),
+                    '</whileStatment>',
+                ]
+            if current_token.value == 'do':
+                pass
+            if current_token.value == 'return':
+                pass
+            if current_token.value in ['}',')']:
+                self.current_token_index -= 1
+                break
+
+        return statements
+
+    def compile_while_statement(self):
+        print('entered while compilation')
+        return [
+            self.return_xml_tag(self.compare_token(self.eat_token(),LexicToken(type='symbol',value='('))),
+            '<expession>',
+            self.compile_expression(),
+            '</expession>',
+            self.return_xml_tag(self.compare_token(self.eat_token(),LexicToken(type='symbol',value=')'))),
             self.return_xml_tag(self.compare_token(self.eat_token(),LexicToken(type='symbol',value='{'))),
-            self.compile_var_class_dec(),
+            '<statements>',
+            self.compile_statements(),
+            '</statements>',
+            #self.return_xml_tag(self.compare_token(self.eat_token(),LexicToken(type='symbol',value='}'))),
+        ]
+
+    def compile_let_statement(self):
+        print('entered let compilation')
+        return [
+            self.return_xml_tag(self.compare_token(self.eat_token(),LexicToken(type='identifier',value=''))),
+            self.return_xml_tag(self.compare_token(self.eat_token(),LexicToken(type='symbol',value='='))),
+            '<expession>',
+            self.compile_expression(),
+            '</expession>',
+            self.return_xml_tag(self.compare_token(self.eat_token(),LexicToken(type='symbol',value=';'))),
+        ]
+
+    '''
+        def: if (expression) { statements } (else { statements })?
+    
+    '''
+    def compile_if_statement(self):
+        print('entered if compilation')
+        return [            
+            self.return_xml_tag(self.compare_token(self.eat_token(),LexicToken(type='symbol',value='('))),
+            '<expession>',
+            self.compile_expression(),
+            '</expession>',
+            self.return_xml_tag(self.compare_token(self.eat_token(),LexicToken(type='symbol',value=')'))),
+            self.return_xml_tag(self.compare_token(self.eat_token(),LexicToken(type='symbol',value='{'))),
+            '<expession>',
+            self.compile_expression(),
+            '</expession>',
             self.return_xml_tag(self.compare_token(self.eat_token(),LexicToken(type='symbol',value='}'))),
         ]
 
-    def compile_n_rules(self):
-        pass
+    '''
+        def: term (op term)*
+        ex: count < 100
+    '''
+    def compile_expression(self):
+        print('entered expression compilation')
+        expression = []
+        # compile term
+        expression.append(self.compile_term())
 
-    def compile_or_token(self, lex_token: LexicToken, possible_values: list):
-        for item in possible_values:
-            if self.compare_token(lex_token,LexicToken(type=item.type,value=item.value)):
-                return lex_token
-        
-        #raise Exception('Teste')
+        # loop to check how many iterations of (op term)* are present        
+        while 1:
+            print('teste')
+            current_token = self.eat_token()
+            # checks if the (op term)* rules applies
+            if current_token.value not in [')', '}', ';']:
+                if any(
+                    [
+                        current_token.value=='+',
+                        current_token.value=='-',
+                        current_token.value=='*',
+                        current_token.value=='/',
+                        current_token.value=='&',
+                        current_token.value=='|',
+                        current_token.value=='<',
+                        current_token.value=='>',
+                        current_token.value=='=',
+                    ]
+                ):
+                    expression.append(self.return_xml_tag(current_token))
+                    expression.append(self.compile_term())
 
-    def compile_var_class_dec(self):
-        return [
-            self.return_xml_tag(self.compile_or_token(self.eat_token(), [LexicToken(type='keyword',value='static'),LexicToken(type='keyword',value='field')])),
-            self.return_xml_tag(self.compile_or_token(self.eat_token(), [LexicToken(type='keyword',value='int'),LexicToken(type='keyword',value='char'),LexicToken(type='keyword',value='boolean')])),
-            self.return_xml_tag(self.compare_token(self.eat_token(),LexicToken(type='identifier',value=True))),
-            self.return_xml_tag(self.compare_token(self.eat_token(),LexicToken(type='symbol',value=';'))),
-        ]
+            else:
+                self.current_token_index -= 1
+                return expression
+            print(f"Expression is: {expression}")
+            return expression
+
+    
+    '''
+        def: integerConstant | stringConstant | keywordConstant | varName ...
+    '''
+    def compile_term(self):
+        print('entered term compilation')
+        current_token = self.eat_token()
+        if any(
+            [
+                current_token.type=='integerConstant',
+                current_token.type=='stringConstant',
+                current_token.type=='identifier',
+                current_token.value=='true',
+                current_token.value=='false',
+                current_token.value=='null',
+                current_token.value=='this',
+            ]
+        ):
+            return f'<term> {self.return_xml_tag(current_token)} </term>'
 
 def main():
     arguments_list = [
@@ -117,6 +231,7 @@ def main():
     #print([ce.is_terminal_element(token) for token in ce.tokens])
 
     #print(ce.compile_class_statement())
+    print(ce.compile_statements())
 
 if __name__ == "__main__":
     main()
