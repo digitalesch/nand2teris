@@ -6,8 +6,6 @@ import argparse, os
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 
-from hypothesis import currently_in_test_context
-
 @dataclass
 class LexicToken():
     type:   str
@@ -118,7 +116,7 @@ def main():
         print(token,ce.is_terminal_element(token))
     #print([ce.is_terminal_element(token) for token in ce.tokens])
 
-    print(ce.compile_class_statement())
+    #print(ce.compile_class_statement())
 
 if __name__ == "__main__":
     main()
