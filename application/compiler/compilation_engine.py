@@ -2,9 +2,10 @@
 from parser import Parser
 
 # built-in
-import argparse, os
+import argparse, os, itertools
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
+from typing import Iterable 
 
 @dataclass
 class LexicToken():
@@ -40,12 +41,17 @@ class CompilationEngine():
             pass
     
     def return_xml_tag(self, lex_token):
-        return f'<{lex_token.type}> {lex_token.value} </{lex_token.type}>'
+        translate = {
+            "<": '&lt;',
+            ">": '&gt;', 
+            "'": '&quot;',
+            "&": '&amp;'
+        }
+        return f'<{lex_token.type}> {translate[lex_token.value] if lex_token.value in translate else lex_token.value} </{lex_token.type}>'
 
     def compare_token(self, input: LexicToken, expectation: LexicToken):
         print(input, expectation)
         if any([input.type == expectation.type, input.value == expectation.value]):
-            #print('teste')
             return input
         else:
             print('teste2')
@@ -63,35 +69,40 @@ class CompilationEngine():
         statements = []
         while 1:
             current_token = self.eat_token()
-            print(f'Statement token is {current_token}')
-            if current_token.value == 'let':
-                statements += [
-                    '<letStatment>',
-                    self.return_xml_tag(current_token),
-                    self.compile_let_statement(),
-                    '</letStatment>',
-                ]
-            if current_token.value == 'if':
-                statements += [
-                    '<ifStatement>',
-                    self.return_xml_tag(current_token),
-                    self.compile_if_statement(),
-                    '</ifStatement>',
-                ]
-            if current_token.value == 'while':
-                statements += [
-                    '<whileStatment>',
-                    self.return_xml_tag(current_token),
-                    self.compile_while_statement(),
-                    '</whileStatment>',
-                ]
-            if current_token.value == 'do':
-                pass
-            if current_token.value == 'return':
-                pass
-            if current_token.value in ['}',')']:
-                self.current_token_index -= 1
+            if current_token:
+                print(f'Statement token is {current_token}')
+                if current_token.value == 'let':
+                    statements += [
+                        '<letStatment>',
+                        self.return_xml_tag(current_token),
+                        self.compile_let_statement(),
+                        '</letStatment>',
+                    ]
+                if current_token.value == 'if':
+                    statements += [
+                        '<ifStatement>',
+                        self.return_xml_tag(current_token),
+                        self.compile_if_statement(),
+                        '</ifStatement>',
+                    ]
+                if current_token.value == 'while':
+                    statements += [
+                        '<whileStatment>',
+                        self.return_xml_tag(current_token),
+                        self.compile_while_statement(),
+                        '</whileStatment>',
+                    ]
+                if current_token.value == 'do':
+                    pass
+                if current_token.value == 'return':
+                    pass
+                if current_token.value in ['}',')']:
+                    print('aaa')
+                    self.current_token_index -= 1
+                    break
+            else:
                 break
+        print('bbbb')
 
         return statements
 
@@ -107,7 +118,7 @@ class CompilationEngine():
             '<statements>',
             self.compile_statements(),
             '</statements>',
-            #self.return_xml_tag(self.compare_token(self.eat_token(),LexicToken(type='symbol',value='}'))),
+            self.return_xml_tag(self.compare_token(self.eat_token(),LexicToken(type='symbol',value='}'))),
         ]
 
     def compile_let_statement(self):
@@ -152,7 +163,6 @@ class CompilationEngine():
 
         # loop to check how many iterations of (op term)* are present        
         while 1:
-            print('teste')
             current_token = self.eat_token()
             # checks if the (op term)* rules applies
             if current_token.value not in [')', '}', ';']:
@@ -171,7 +181,7 @@ class CompilationEngine():
                 ):
                     expression.append(self.return_xml_tag(current_token))
                     expression.append(self.compile_term())
-
+            # returns to previous token, so it can be evaluated
             else:
                 self.current_token_index -= 1
                 return expression
@@ -196,7 +206,21 @@ class CompilationEngine():
                 current_token.value=='this',
             ]
         ):
-            return f'<term> {self.return_xml_tag(current_token)} </term>'
+            return [
+                '<term>',
+                self.return_xml_tag(current_token),
+                '</term>'
+            ]
+
+def flatten(items):
+    """Yield items from any nested iterable; see Reference."""
+    for x in items:
+        if isinstance(x, Iterable) and not isinstance(x, (str, bytes)):
+            for sub_x in flatten(x):
+                yield sub_x
+        else:
+            yield x
+
 
 def main():
     arguments_list = [
@@ -224,14 +248,20 @@ def main():
 
     ce = CompilationEngine(tree)
     
-    #tokens =  ce.create_tokens()
-    print(ce.tokens)
     for token in ce.tokens:
         print(token,ce.is_terminal_element(token))
-    #print([ce.is_terminal_element(token) for token in ce.tokens])
 
-    #print(ce.compile_class_statement())
-    print(ce.compile_statements())
+    x = ce.compile_statements()
+    z = list(flatten(x))
+    w = ''.join(z)
+    xml_tree = ET.fromstring(w)
 
+
+    print(ET.tostring(xml_tree, encoding='utf8', method='xml'))
+    with open(f'{os.path.join(os.getcwd(),args.file_path)}/MainTokensSyntax.xml','w') as fp:
+        fp.write('\n'.join(z)+'\n')
+
+    with open(f'{os.path.join(os.getcwd(),args.file_path)}/MainTokensSyntaxBinary.xml','wb') as fp:
+        fp.write(ET.tostring(xml_tree, encoding='utf8', method='xml'))
 if __name__ == "__main__":
     main()
