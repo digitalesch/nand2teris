@@ -43,8 +43,6 @@ class CompilationEngine():
     def compare_token(self, input: LexicToken, expectation: LexicToken):
         print(input, expectation)
         print([(input.type if token.type else None)==token.type and (input.value if token.value else None)==token.value for token in expectation])
-        #if any([input.type == expectation.type, input.value == expectation.value]):
-
         '''
             makes the assumption that, if both parameters are passed, both are compared, otherwise, only individual parameter is compared
             by creating none for input when not passed
@@ -60,7 +58,8 @@ class CompilationEngine():
         if any([(input.type if token.type else None)==token.type and (input.value if token.value else None)==token.value for token in expectation]):
             return input
         else:
-            print('teste2')
+            # raises excpetion by not having the expected token in code
+            raise Exception(f'Expected the following {expectation}, but got {input}')
 
     # a ideia é diferente aqui, só precisa compilar os termos que vai achando, não comparar com a gramática em si
     def compile_class_statement(self):
@@ -114,6 +113,7 @@ class CompilationEngine():
         subroutine_dec = []
         while 1:
             current_token = self.eat_token()
+            print(f'xxxx {current_token}')
             if current_token:
                 if current_token.value in ['constructor','function','method']:
                     subroutine_dec += [
@@ -138,7 +138,7 @@ class CompilationEngine():
                         self.compile_subroutine_body(),
                         self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value='}')])),
                         '</subroutineDec>',
-                    ]                
+                    ]
                 if current_token.value in ['}']:
                     print('compile_subroutine_dec ended')
                     self.current_token_index -= 1
@@ -176,6 +176,7 @@ class CompilationEngine():
         return var_dec
 
     def compile_statements(self):
+        print('entered compile_statements compilation')
         statements = []
         while 1:
             current_token = self.eat_token()
@@ -205,7 +206,12 @@ class CompilationEngine():
                 if current_token.value == 'do':
                     pass
                 if current_token.value == 'return':
-                    pass
+                    statements += [
+                        '<returnStatment>',
+                        self.return_xml_tag(current_token),
+                        self.compile_return_statement(),
+                        '</returnStatment>',
+                    ]
                 if current_token.value in ['}',')']:
                     self.current_token_index -= 1
                     break
@@ -260,6 +266,19 @@ class CompilationEngine():
         ]
 
     '''
+        def: 
+    '''
+    def compile_return_statement(self):
+        print('entered return compilation')
+
+        return [
+            '<expession>',
+            self.compile_expression(),
+            '</expession>',
+            self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value=';')])),
+        ]
+
+    '''
         def: term (op term)*
         ex: count < 100
     '''
@@ -292,6 +311,7 @@ class CompilationEngine():
             # returns to previous token, so it can be evaluated
             else:
                 self.current_token_index -= 1
+                print(f"Expression is: {expression}")
                 return expression
             print(f"Expression is: {expression}")
             return expression
@@ -300,8 +320,9 @@ class CompilationEngine():
     '''
         def: integerConstant | stringConstant | keywordConstant | varName ...
     '''
-    def compile_term(self):
+    def compile_term(self):        
         print('entered term compilation')
+        term = []
         current_token = self.eat_token()
         if any(
             [
@@ -314,11 +335,15 @@ class CompilationEngine():
                 current_token.value=='this',
             ]
         ):
-            return [
+            term += [
                 '<term>',
                 self.return_xml_tag(current_token),
                 '</term>'
             ]
+        else:
+            self.current_token_index -= 1
+        
+        return term
 
 def flatten(items):
     """Yield items from any nested iterable; see Reference."""
