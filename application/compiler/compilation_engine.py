@@ -1,8 +1,10 @@
 # created code
+from operator import concat
+from posixpath import split
 from parser import Parser
 
 # built-in
-import argparse, os, itertools
+import argparse, os
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from typing import Iterable 
@@ -113,7 +115,6 @@ class CompilationEngine():
         subroutine_dec = []
         while 1:
             current_token = self.eat_token()
-            print(f'xxxx {current_token}')
             if current_token:
                 if current_token.value in ['constructor','function','method']:
                     subroutine_dec += [
@@ -133,10 +134,11 @@ class CompilationEngine():
                         ),
                         self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='identifier')])),
                         self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value='(')])),
+                        self.compile_parameter_list(),
                         self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value=')')])),
-                        self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value='{')])),
+                        #self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value='{')])),
                         self.compile_subroutine_body(),
-                        self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value='}')])),
+                        #self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value='}')])),
                         '</subroutineDec>',
                     ]
                 if current_token.value in ['}']:
@@ -152,8 +154,14 @@ class CompilationEngine():
         print('entered compile_subroutine_body compilation')
         subroutine_body = []
 
-        subroutine_body += self.compile_var_dec()
-        subroutine_body += self.compile_statements()
+        subroutine_body += [
+            '<subroutineBody>',
+            self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value='{')])),
+            self.compile_var_dec(),
+            self.compile_statements(),
+            self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value='}')])),
+            '</subroutineBody>',
+        ]
 
         return subroutine_body
 
@@ -177,7 +185,7 @@ class CompilationEngine():
 
     def compile_statements(self):
         print('entered compile_statements compilation')
-        statements = []
+        statements = ['<statements>']
         while 1:
             current_token = self.eat_token()
             if current_token:
@@ -204,7 +212,12 @@ class CompilationEngine():
                         '</whileStatment>',
                     ]
                 if current_token.value == 'do':
-                    pass
+                    statements += [
+                        '<doStatment>',
+                        self.return_xml_tag(current_token),
+                        self.compile_do_statement(),
+                        '</doStatment>',
+                    ]
                 if current_token.value == 'return':
                     statements += [
                         '<returnStatment>',
@@ -213,6 +226,9 @@ class CompilationEngine():
                         '</returnStatment>',
                     ]
                 if current_token.value in ['}',')']:
+                    statements +=[
+                        '</statements>'
+                    ]
                     self.current_token_index -= 1
                     break
             else:
@@ -223,15 +239,11 @@ class CompilationEngine():
     def compile_while_statement(self):
         print('entered while compilation')
         return [
-            self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value='(')])),
-            '<expession>',
+            self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value='(')])),            
             self.compile_expression(),
-            '</expession>',
             self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value=')')])),
             self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value='{')])),
-            '<statements>',
             self.compile_statements(),
-            '</statements>',
             self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value='}')])),
         ]
 
@@ -240,9 +252,7 @@ class CompilationEngine():
         return [
             self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='identifier')])),
             self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value='=')])),
-            '<expession>',
             self.compile_expression(),
-            '</expession>',
             self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value=';')])),
         ]
 
@@ -254,14 +264,10 @@ class CompilationEngine():
         print('entered if compilation')
         return [            
             self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value='(')])),
-            '<expession>',
             self.compile_expression(),
-            '</expession>',
             self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value=')')])),
             self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value='{')])),
-            '<expession>',
             self.compile_expression(),
-            '</expession>',
             self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value='}')])),
         ]
 
@@ -272,11 +278,22 @@ class CompilationEngine():
         print('entered return compilation')
 
         return [
-            '<expession>',
             self.compile_expression(),
-            '</expession>',
             self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value=';')])),
         ]
+
+    '''
+        def: do subroutineCall
+    '''
+    def compile_do_statement(self):
+        print('entered do compilation')
+        do_statement = []
+
+        do_statement += [            
+            self.compile_subroutine_call(),            
+        ]
+
+        return do_statement
 
     '''
         def: term (op term)*
@@ -284,7 +301,7 @@ class CompilationEngine():
     '''
     def compile_expression(self):
         print('entered expression compilation')
-        expression = []
+        expression = ['<expression>']
         # compile term
         expression.append(self.compile_term())
 
@@ -310,10 +327,12 @@ class CompilationEngine():
                     expression.append(self.compile_term())
             # returns to previous token, so it can be evaluated
             else:
+                expression += ['</expression>']
                 self.current_token_index -= 1
                 print(f"Expression is: {expression}")
                 return expression
             print(f"Expression is: {expression}")
+            expression += ['</expression>']
             return expression
 
     
@@ -345,14 +364,124 @@ class CompilationEngine():
         
         return term
 
-def flatten(items):
-    """Yield items from any nested iterable; see Reference."""
-    for x in items:
-        if isinstance(x, Iterable) and not isinstance(x, (str, bytes)):
-            for sub_x in flatten(x):
-                yield sub_x
+    def compile_parameter_list(self):
+        print('entered compile_parameter_list compilation')
+        parameter_list = ['<parameterList>']
+
+        concated_params = []
+        
+        # loop to check how many iterations of (op term)* are present        
+        while 1:
+            print(f'XXX {concated_params}')
+            current_token = self.eat_token()            
+            # checks if the (op term)* rules applies
+            if current_token.value not in [')']:
+                concated_params.append(current_token)
+                # condition so first value of parameters isn't a comma
+                # will break if the first parameter is a comma, by accessing weird list positions that don't yet exist
+                try:
+                    if current_token.value == ',' and concated_params[-2].type=='identifier':
+                        #concated_params.append(current_token)
+                        parameter_list += [
+                            self.return_xml_tag(self.compare_token(current_token,[LexicToken(type='symbol',value=',')])),
+                        ]                
+                    else:
+                        concated_params.append(self.eat_token())
+                        parameter_list += [
+                            self.return_xml_tag(
+                                self.compare_token(                                
+                                    concated_params[-2],
+                                    [                     
+                                        LexicToken(value='int'),                                    
+                                        LexicToken(value='char'),
+                                        LexicToken(value='boolean')
+                                    ]
+                                ),
+                            ),
+                            self.return_xml_tag(self.compare_token(concated_params[-1],[LexicToken(type='identifier')])),
+                        ]
+                except IndexError:
+                    raise Exception(f'Error in parameter list, got unexpected {current_token}')
+            # returns to previous token, so it can be evaluated
+            else:
+                parameter_list += ['</parameterList>']
+                self.current_token_index -= 1
+                break
+
+        # rule to check on impossible parameters list, like "int x," or "," or ", int"
+        if len(concated_params)%3==0 and len(concated_params)>0:
+            raise Exception(f"Error in parameter list, got {concated_params}")
+
+        return parameter_list
+        
+    '''
+        def: subRoutineName '(' expressionList ')' | (className|varName) '.' subRoutineName '(' expressionList ')'
+    '''
+    def compile_subroutine_call(self):
+        print('entered compile_subroutine_call compilation')
+        subroutine_call = [
+            '<subroutineCall>',
+            self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='identifier')])),    
+        ]
+
+        # eats next token, to determine if its first or second option of or statement
+        current_token = self.eat_token()
+
+        # first rule
+        if current_token.value == '(':
+            # appends current token only
+            subroutine_call.append(self.return_xml_tag(current_token))
+        # second rule
+        if current_token.value == '.':
+            print('second')
+            # appends current token and next identifier
+            subroutine_call += [
+                self.return_xml_tag(current_token),
+                self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='identifier')])),
+                self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(value='(')])),
+            ]
+
+        subroutine_call += [
+            '<expressionList>',
+            self.compile_expression_list(),
+            '</expressionList>',
+            self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value=')')])),
+            self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value=';')])),
+            '</subroutineCall>'
+        ]
+
+        return subroutine_call
+
+    '''
+        def: (expression (, expression)*)?
+    '''
+    def compile_expression_list(self):
+        expression_list = []
+
+        expression_list += [
+            self.compile_expression()
+        ]
+
+        current_token = self.eat_token()
+        # recursevely construct expressions
+        if current_token.value == ',':
+            expression_list += self.compile_expression_list()
         else:
-            yield x
+            self.current_token_index -= 1
+        
+        print(expression_list)
+
+        return expression_list
+
+
+    def flatten_statements(self,items):
+        """Yield items from any nested iterable; see Reference."""
+        for x in items:
+            if isinstance(x, Iterable) and not isinstance(x, (str, bytes)):
+                for sub_x in self.flatten_statements(x):
+                    yield sub_x
+            else:
+                yield x
 
 def main():
     arguments_list = [
@@ -377,32 +506,28 @@ def main():
     print(f'{os.path.join(os.getcwd(),args.file_path)}/MainTokens.xml')
 
     if os.path.isfile(f'{os.path.join(os.getcwd(),args.file_path)}'):        
-        file_path = os.path.split(args.file_path)
-        print(f"{os.path.join(file_path[0],file_path[1].split('.')[0])}Tokens.xml")
-        tree = ET.parse(f"{os.path.join(file_path[0],file_path[1].split('.')[0])}Tokens.xml")
+        split_path = os.path.split(args.file_path)
+        file_path, file_name = split_path[0], split_path[1]
+        print(f"{os.path.join(file_path,file_name.split('.')[0])}Tokens.xml")
+        tree = ET.parse(f"{os.path.join(file_path,file_name.split('.')[0])}Tokens.xml")
     else:
-        tree = ET.parse(f'{os.path.join(os.getcwd(),args.file_path)}/MainTokens.xml')
+        file_path = args.file_path
+        tree = ET.parse(f'{os.path.join(os.getcwd(),file_path)}/MainTokens.xml')
 
     ce = CompilationEngine(tree)
     
     for token in ce.tokens:
         print(token)
 
-    #print(ce.compare_token(LexicToken(type='keyword',value='int'),[LexicToken(type='',value='float'),LexicToken(type='',value='int')]))
-    print(ce.compile_class_statement())
+    class_statments = ce.compile_class_statement()
 
-    '''
-    x = ce.compile_statements()
-    z = list(flatten(x))
-    w = ''.join(z)
-    xml_tree = ET.fromstring(w)
+    print(class_statments)
 
-    print(ET.tostring(xml_tree, encoding='utf8', method='xml'))
-    with open(f'{os.path.join(os.getcwd(),args.file_path)}/MainTokensSyntax.xml','w') as fp:
-        fp.write('\n'.join(z)+'\n')
+    flattened_statements = list(ce.flatten_statements(class_statments))
+    xml_tree = ET.fromstring(''.join(flattened_statements))
 
-    with open(f'{os.path.join(os.getcwd(),args.file_path)}/MainTokensSyntaxBinary.xml','wb') as fp:
-        fp.write(ET.tostring(xml_tree, encoding='utf8', method='xml'))
-    '''
+    with open(f"{os.path.join(os.getcwd(),file_path)}/{file_name.split('.')[0]}Syntax.xml",'w') as fp:
+        fp.write('\n'.join(flattened_statements)+'\n')
+
 if __name__ == "__main__":
     main()
