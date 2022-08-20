@@ -79,13 +79,12 @@ class CompilationEngine():
     
     def compile_var_class_dec(self):
         print('entered compile_var_class_dec compilation')
-        var_class_dec = []
+        var_class_dec = ['<classVarDec>']
         while 1:
             current_token = self.eat_token()
             if current_token:
                 if current_token.value in ['static','field']:
                     var_class_dec += [
-                        '<classVarDec>',
                         self.return_xml_tag(current_token),
                         self.return_xml_tag(
                             self.compare_token(
@@ -98,8 +97,7 @@ class CompilationEngine():
                             ),
                         ),
                         self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='identifier')])),
-                        self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value=';')])),
-                        '</classVarDec>',
+                        self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value=';')])),                        
                     ]
                 if current_token.value in ['constuctor','function','method','}', ';']:
                     print('var class dec ended')
@@ -108,6 +106,8 @@ class CompilationEngine():
             else:
                 break
         
+        var_class_dec += ['</classVarDec>']
+
         return var_class_dec
 
     def compile_subroutine_dec(self):
@@ -134,11 +134,12 @@ class CompilationEngine():
                         ),
                         self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='identifier')])),
                         self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value='(')])),
-                        self.compile_parameter_list(),
+                        '<parameterList>',
+                        # gets tokens directly instead of xml tags, so list comprehension is needed
+                        [self.return_xml_tag(token) for token in self.compile_parameter_list()], 
+                        '</parameterList>',
                         self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value=')')])),
-                        #self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value='{')])),
                         self.compile_subroutine_body(),
-                        #self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value='}')])),
                         '</subroutineDec>',
                     ]
                 if current_token.value in ['}']:
@@ -170,6 +171,15 @@ class CompilationEngine():
     '''
     def compile_var_dec(self):
         print('entered compile_var_dec compilation')
+        var_dec = ['<varDec>']
+        
+        current_token = self.eat_token()
+
+        if current_token.value in ['let','if','while','do','return']:
+            var_dec += ['</varDec>']
+            self.current_token_index -= 1
+            return var_dec
+
         var_dec = [
             self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='keyword',value='var')])),
             self.return_xml_tag(
@@ -215,32 +225,7 @@ class CompilationEngine():
             self.compile_var_dec_list()
         if current_token.value == ';':
             self.current_token_index -= 1
-            return var_dec_list
-
-        '''
-        while 1:
-            print(f"vac_dec_list: {var_dec_list}")
-            current_token = self.eat_token()
-            if current_token.type == 'identifier':
-                if len(var_dec_list)%2 == 0:
-                    var_dec_list.append(self.return_xml_tag(current_token))
-                else:
-                    raise Exception(f"Error in variable declaration, got {var_dec_list}")    
-            if current_token.value == ',':
-                if len(var_dec_list)%2 == 0:
-                    raise Exception(f"Error in variable declaration, got {var_dec_list}")
-                else:
-                    var_dec_list.append(self.return_xml_tag(current_token))
-            if current_token.value == ';' and len(var_dec_list)%2 != 0:
-                self.current_token_index -= 1
-                break
-
-        print('exited compile_var_dec_list compilation')
-        if len(var_dec_list) > 0:
-            return var_dec_list
-        else:
-            raise Exception(f"Error in variable declaration, got {var_dec_list}")
-        '''
+            return var_dec_list        
 
     def compile_statements(self):
         print('entered compile_statements compilation')
@@ -422,56 +407,50 @@ class CompilationEngine():
             self.current_token_index -= 1
         
         return term
-
+    
+    '''
+        def: (type identifier (',' type identifier)*)*
+    '''
     def compile_parameter_list(self):
         print('entered compile_parameter_list compilation')
-        parameter_list = ['<parameterList>']
-
-        concated_params = []
+        parameter_list = []
         
-        # loop to check how many iterations of (op term)* are present        
-        while 1:
-            print(f'XXX {concated_params}')
-            current_token = self.eat_token()            
-            # checks if the (op term)* rules applies
-            if current_token.value not in [')']:
-                concated_params.append(current_token)
-                # condition so first value of parameters isn't a comma
-                # will break if the first parameter is a comma, by accessing weird list positions that don't yet exist
-                try:
-                    if current_token.value == ',' and concated_params[-2].type=='identifier':
-                        #concated_params.append(current_token)
-                        parameter_list += [
-                            self.return_xml_tag(self.compare_token(current_token,[LexicToken(type='symbol',value=',')])),
-                        ]                
-                    else:
-                        concated_params.append(self.eat_token())
-                        parameter_list += [
-                            self.return_xml_tag(
-                                self.compare_token(                                
-                                    concated_params[-2],
-                                    [                     
-                                        LexicToken(value='int'),                                    
-                                        LexicToken(value='char'),
-                                        LexicToken(value='boolean')
-                                    ]
-                                ),
-                            ),
-                            self.return_xml_tag(self.compare_token(concated_params[-1],[LexicToken(type='identifier')])),
+        current_token = self.eat_token()        
+
+        # exits function when a right parenthesis is found
+        if current_token.value == ')':
+            print(f'param {parameter_list}')
+            self.current_token_index -= 1
+            return parameter_list
+        else:        
+            # builds first parameter, when passed
+            parameter_list.append(
+                    self.compare_token(                                
+                        current_token,
+                        [                     
+                            LexicToken(value='int'),                                    
+                            LexicToken(value='char'),
+                            LexicToken(value='boolean'),
+                            LexicToken(type='identifier')
                         ]
-                except IndexError:
-                    raise Exception(f'Error in parameter list, got unexpected {current_token}')
-            # returns to previous token, so it can be evaluated
+                    )                
+            )
+            parameter_list.append(
+                self.compare_token(self.eat_token(),[LexicToken(type='identifier')])
+            )
+            # eats another token to see if second part of rule (',' type identifier)* exists
+            current_token = self.eat_token()
+
+            if current_token.value == ',':
+                print(current_token)
+                parameter_list.append(current_token)
+                parameter_list += self.compile_parameter_list()
+                if parameter_list[-1].value == ',':
+                    raise Exception(f"Error in parameter list, since last item is {parameter_list[-1]}")
             else:
-                parameter_list += ['</parameterList>']
                 self.current_token_index -= 1
-                break
 
-        # rule to check on impossible parameters list, like "int x," or "," or ", int"
-        if len(concated_params)%3==0 and len(concated_params)>0:
-            raise Exception(f"Error in parameter list, got {concated_params}")
-
-        return parameter_list
+            return parameter_list      
         
     '''
         def: subRoutineName '(' expressionList ')' | (className|varName) '.' subRoutineName '(' expressionList ')'
