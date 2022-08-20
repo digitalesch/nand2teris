@@ -165,23 +165,82 @@ class CompilationEngine():
 
         return subroutine_body
 
+    '''
+        def: 'var' type varName (',' varName)* ';'
+    '''
     def compile_var_dec(self):
         print('entered compile_var_dec compilation')
-        var_dec = []
+        var_dec = [
+            self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='keyword',value='var')])),
+            self.return_xml_tag(
+                self.compare_token(
+                    self.eat_token(),
+                    [
+                        LexicToken(value='int'),
+                        LexicToken(value='char'),
+                        LexicToken(value='boolean'),
+                        LexicToken(type='identifier')
+                    ]
+                ),
+            ),
+            self.compile_var_dec_list(),
+            self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value=';')])),
+        ]
 
-        while 1:
-            current_token = self.eat_token()
-            if current_token:
-                if current_token.value in ['var']:
-                    pass
-                if current_token.value in [';','let','if','while','do','return']:
-                    print('compile_var_dec ended')
-                    self.current_token_index -= 1
-                    break
-            else:
-                break
+        current_token = self.eat_token()
+        # recursevely construct expressions
+        if current_token.value == 'var':
+            self.current_token_index -= 1
+            var_dec += [
+                self.return_xml_tag(current_token),
+                self.compile_var_dec(),
+            ]
+        else:
+            self.current_token_index -= 1
         
+        print(var_dec)
+
         return var_dec
+
+    def compile_var_dec_list(self):
+        print('entered compile_var_dec_list compilation')
+        var_dec_list = []
+
+        var_dec_list += [
+            self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='identifier')])),
+        ]
+
+        current_token = self.eat_token()
+        if current_token.value == ',':
+            self.compile_var_dec_list()
+        if current_token.value == ';':
+            self.current_token_index -= 1
+            return var_dec_list
+
+        '''
+        while 1:
+            print(f"vac_dec_list: {var_dec_list}")
+            current_token = self.eat_token()
+            if current_token.type == 'identifier':
+                if len(var_dec_list)%2 == 0:
+                    var_dec_list.append(self.return_xml_tag(current_token))
+                else:
+                    raise Exception(f"Error in variable declaration, got {var_dec_list}")    
+            if current_token.value == ',':
+                if len(var_dec_list)%2 == 0:
+                    raise Exception(f"Error in variable declaration, got {var_dec_list}")
+                else:
+                    var_dec_list.append(self.return_xml_tag(current_token))
+            if current_token.value == ';' and len(var_dec_list)%2 != 0:
+                self.current_token_index -= 1
+                break
+
+        print('exited compile_var_dec_list compilation')
+        if len(var_dec_list) > 0:
+            return var_dec_list
+        else:
+            raise Exception(f"Error in variable declaration, got {var_dec_list}")
+        '''
 
     def compile_statements(self):
         print('entered compile_statements compilation')
@@ -472,7 +531,6 @@ class CompilationEngine():
         print(expression_list)
 
         return expression_list
-
 
     def flatten_statements(self,items):
         """Yield items from any nested iterable; see Reference."""
