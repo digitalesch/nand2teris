@@ -158,7 +158,9 @@ class CompilationEngine():
         subroutine_body += [
             '<subroutineBody>',
             self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value='{')])),
+            '<varDec>',
             self.compile_var_dec(),
+            '</varDec>',
             self.compile_statements(),
             self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value='}')])),
             '</subroutineBody>',
@@ -171,17 +173,17 @@ class CompilationEngine():
     '''
     def compile_var_dec(self):
         print('entered compile_var_dec compilation')
-        var_dec = ['<varDec>']
+        var_dec = []
         
         current_token = self.eat_token()
 
         if current_token.value in ['let','if','while','do','return']:
-            var_dec += ['</varDec>']
+            #var_dec += ['</varDec>']
             self.current_token_index -= 1
             return var_dec
 
         var_dec = [
-            self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='keyword',value='var')])),
+            self.return_xml_tag(self.compare_token(current_token,[LexicToken(type='keyword',value='var')])),
             self.return_xml_tag(
                 self.compare_token(
                     self.eat_token(),
@@ -193,18 +195,16 @@ class CompilationEngine():
                     ]
                 ),
             ),
-            self.compile_var_dec_list(),
-            self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value=';')])),
         ]
+
+        var_dec += self.compile_var_dec_list()
+        var_dec.append(self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value=';')])))
 
         current_token = self.eat_token()
         # recursevely construct expressions
         if current_token.value == 'var':
             self.current_token_index -= 1
-            var_dec += [
-                self.return_xml_tag(current_token),
-                self.compile_var_dec(),
-            ]
+            var_dec += self.compile_var_dec(),
         else:
             self.current_token_index -= 1
         
@@ -220,12 +220,17 @@ class CompilationEngine():
             self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='identifier')])),
         ]
 
+        print(var_dec_list)
+
         current_token = self.eat_token()
         if current_token.value == ',':
-            self.compile_var_dec_list()
+            var_dec_list.append(self.return_xml_tag(current_token))
+            var_dec_list += self.compile_var_dec_list()
         if current_token.value == ';':
             self.current_token_index -= 1
-            return var_dec_list        
+            return var_dec_list     
+
+        return var_dec_list   
 
     def compile_statements(self):
         print('entered compile_statements compilation')
