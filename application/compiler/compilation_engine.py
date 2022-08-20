@@ -51,11 +51,18 @@ class CompilationEngine():
             example11:
                 current token: LexicToken(type='keyword', value='int')
                 compared to: [LexicToken(type=None, value='int'), LexicToken(type=None, value='char'), LexicToken(type=None, value='boolean')]
-                second parameter will be compared
+                second parameter will be compared and will return
+                [True,False,False]
             example2:
                 current token: LexicToken(type='symbol', value='{')
                 compared to: [LexicToken(type='symbol', value='{')]
                 both parameters will be compared
+                [True]
+            example3:
+                current token: LexicToken(type='symbol', value='{')
+                compared to: [LexicToken(type='symbol', value='}')]
+                both parameters will be compared
+                [False]
         '''
         if any([(input.type if token.type else None)==token.type and (input.value if token.value else None)==token.value for token in expectation]):
             return input
