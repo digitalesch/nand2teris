@@ -1,6 +1,7 @@
 # created code
 from operator import concat
 from posixpath import split
+from sys import exc_info
 from parser import Parser
 
 # built-in
@@ -78,42 +79,48 @@ class CompilationEngine():
             self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='keyword',value='class')])),
             self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='identifier')])),
             self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value='{')])),
+            '<classVarDec>',
             self.compile_var_class_dec(),
+            '</classVarDec>',
             self.compile_subroutine_dec(),
             self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value='}')])),
             '</class>',
         ]
-    
+
     def compile_var_class_dec(self):
         print('entered compile_var_class_dec compilation')
-        var_class_dec = ['<classVarDec>']
-        while 1:
-            current_token = self.eat_token()
-            if current_token:
-                if current_token.value in ['static','field']:
-                    var_class_dec += [
-                        self.return_xml_tag(current_token),
-                        self.return_xml_tag(
-                            self.compare_token(
-                                self.eat_token(),
-                                [
-                                    LexicToken(value='int'),                                    
-                                    LexicToken(value='char'),
-                                    LexicToken(value='boolean')
-                                ]
-                            ),
-                        ),
-                        self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='identifier')])),
-                        self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value=';')])),                        
-                    ]
-                if current_token.value in ['constuctor','function','method','}', ';']:
-                    print('var class dec ended')
-                    self.current_token_index -= 1
-                    break
-            else:
-                break
+        var_class_dec = []
         
-        var_class_dec += ['</classVarDec>']
+        current_token = self.eat_token()
+        if current_token.value in ['static','field']:
+            var_class_dec += [
+                self.return_xml_tag(current_token),
+                self.return_xml_tag(
+                    self.compare_token(
+                        self.eat_token(),
+                        [
+                            LexicToken(value='int'),                                    
+                            LexicToken(value='char'),
+                            LexicToken(value='boolean')
+                        ]
+                    ),
+                ),                
+            ]
+
+            var_class_dec += self.compile_var_dec_list()
+            var_class_dec.append(self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value=';')])))
+        else:
+            self.current_token_index -= 1
+            return var_class_dec
+
+        current_token = self.eat_token()
+        # recursevely construct expressions
+        if current_token.value in ['static','field']:
+            self.current_token_index -= 1
+            var_class_dec += self.compile_var_class_dec(),
+        else:            
+            print('var class dec ended')
+            self.current_token_index -= 1
 
         return var_class_dec
 
@@ -135,7 +142,8 @@ class CompilationEngine():
                                     LexicToken(value='void'),
                                     LexicToken(value='int'),                                    
                                     LexicToken(value='char'),
-                                    LexicToken(value='boolean')
+                                    LexicToken(value='boolean'),
+                                    LexicToken(type='identifier')
                                 ]
                             ),
                         ),
@@ -387,39 +395,121 @@ class CompilationEngine():
                 self.current_token_index -= 1
                 print(f"Expression is: {expression}")
                 return expression
-            print(f"Expression is: {expression}")
             expression += ['</expression>']
             return expression
 
-    
     '''
-        def: integerConstant | stringConstant | keywordConstant | varName ...
+        def: term (op term)*
+        ex: count < 100
+    '''
+    def compile_expression(self):
+        print('entered expression compilation')
+        expression = ['<expression>']
+        # compile term
+        expression += self.compile_term()
+
+        # compiles possible (op term)
+        current_token = self.eat_token()
+        if current_token.value in [
+            '+',
+            '-',
+            '*',
+            '/',
+            '&',
+            '|',
+            '<',
+            '>',
+            '=',
+        ]:
+            expression.append(self.return_xml_tag(current_token))
+            expression.append(self.compile_term())
+        else:
+            self.current_token_index -= 1
+
+        expression += ['</expression>']
+
+        return expression
+
+    '''
+        def: integerConstant | stringConstant | keywordConstant | varName
+        # falta fazer esses
+         | varName '[' expression ']' | subroutineCall | '(' expression ')' | unaryOp term
     '''
     def compile_term(self):        
         print('entered term compilation')
         term = []
+
         current_token = self.eat_token()
-        if any(
-            [
-                current_token.type=='integerConstant',
-                current_token.type=='stringConstant',
-                current_token.type=='identifier',
-                current_token.value=='true',
-                current_token.value=='false',
-                current_token.value=='null',
-                current_token.value=='this',
+
+        if (
+            current_token.type in [
+                'integerConstant',
+                'stringConstant',
+                'identifier'
+            ]
+            or current_token.value in [
+                'true',
+                'false',
+                'null',
+                'this'
             ]
         ):
-            term += [
-                '<term>',
-                self.return_xml_tag(current_token),
-                '</term>'
+            term.append(self.return_xml_tag(current_token))
+            if current_token.type == 'identifier':
+                # check for rule varName '[' expression ']'
+                current_token = self.eat_token()
+                if current_token.value == '[':
+                    term += self.compile_expression()
+                    term.append(self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value=']')])))
+                if current_token.value == '.':
+                    self.current_token_index -= 2
+                    term += self.compile_subroutine_call()
+        if (
+            current_token.value in [
+                '~',
+                '-',                
             ]
-        else:
-            self.current_token_index -= 1
+        ):
+            term.append(self.return_xml_tag(current_token))
+            term += self.compile_term()
+
+        if (
+            current_token.value in [
+                '(',                
+            ]
+        ):
+            term += self.compile_expression()
+            term.append(self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value=')')])))
         
         return term
-    
+        
+    '''
+    def compile_term(self):        
+        print('entered term compilation')
+
+        current_token = self.eat_token()
+        
+
+        return [
+            '<term>',
+            self.return_xml_tag(
+                self.compare_token(
+                    self.eat_token(),
+                    [
+                        LexicToken(type='integerConstant'),
+                        LexicToken(type='stringConstant'),
+                        LexicToken(type='identifier'),
+                        LexicToken(value='true'),
+                        LexicToken(value='false'),
+                        LexicToken(value='null'),
+                        LexicToken(value='this'),
+                    ]
+                ),
+            ),
+            '</term>',
+        ]
+    '''
+
     '''
         def: (type identifier (',' type identifier)*)*
     '''
@@ -496,7 +586,7 @@ class CompilationEngine():
             self.compile_expression_list(),
             '</expressionList>',
             self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value=')')])),
-            self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value=';')])),
+            #self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value=';')])),
             '</subroutineCall>'
         ]
 
@@ -506,20 +596,19 @@ class CompilationEngine():
         def: (expression (, expression)*)?
     '''
     def compile_expression_list(self):
+        print('entered compile_expression_list compilation')
         expression_list = []
 
         expression_list += [
             self.compile_expression()
         ]
-
         current_token = self.eat_token()
-        # recursevely construct expressions
+
         if current_token.value == ',':
+            expression_list.append(self.return_xml_tag(current_token))
             expression_list += self.compile_expression_list()
         else:
             self.current_token_index -= 1
-        
-        print(expression_list)
 
         return expression_list
 
@@ -578,5 +667,96 @@ def main():
     with open(f"{os.path.join(os.getcwd(),file_path)}/{file_name.split('.')[0]}Syntax.xml",'w') as fp:
         fp.write('\n'.join(flattened_statements)+'\n')
 
+
+def main2():
+    ce = CompilationEngine(
+        ET.fromstring(
+            '''
+                <tokens>
+                    <symbol> ( </symbol>
+                    <identifier> x </identifier>
+                    <symbol> , </symbol>
+                    <identifier> y </identifier>
+                    <symbol> , </symbol>
+                    <identifier> x </identifier>
+                    <symbol> + </symbol>
+                    <identifier> size </identifier>
+                    <symbol> , </symbol>
+                    <identifier> y </identifier>
+                    <symbol> + </symbol>
+                    <identifier> size </identifier>
+                    <symbol> ) </symbol>
+                </tokens>
+            '''
+        )
+    )
+
+    syntax_tokens = []
+
+    syntax_tokens += ce.return_xml_tag(ce.compare_token(ce.eat_token(),[LexicToken(type='symbol',value='(')])),
+    syntax_tokens += ce.compile_expression_list()
+    syntax_tokens += ce.return_xml_tag(ce.compare_token(ce.eat_token(),[LexicToken(type='symbol',value=')')])),
+
+    print(syntax_tokens)
+    flattened_statements = list(ce.flatten_statements(syntax_tokens))
+
+def main3():
+    # let length = Keyboard.readInt("HOW MANY NUMBERS? ");
+    ce = CompilationEngine(
+        ET.fromstring(
+            '''
+                <tokens>
+                    <identifier> Keyboard </identifier>
+                    <symbol> . </symbol>
+                    <identifier> readInt </identifier>
+                    <symbol> ( </symbol>
+                    <symbol> ) </symbol>
+                </tokens>
+            '''
+        )
+    )
+
+    syntax_tokens = []
+
+    syntax_tokens += ce.compile_term()
+    #syntax_tokens += ce.compile_term()
+    #syntax_tokens += ce.compile_term()
+    #syntax_tokens += ce.compile_term()
+
+    print(syntax_tokens)
+    flattened_statements = list(ce.flatten_statements(syntax_tokens))
+
+def main4():
+    # let length = Keyboard.readInt("HOW MANY NUMBERS? ");
+    ce = CompilationEngine(
+        ET.fromstring(
+            '''
+                <tokens>
+                    <keyword> let </keyword>
+                    <identifier> length </identifier>
+                    <symbol> = </symbol>
+                    <identifier> Keyboard </identifier>
+                    <symbol> . </symbol>
+                    <identifier> readInt </identifier>
+                    <symbol> ( </symbol>
+                    <stringConstant> HOW MANY NUMBERS? </stringConstant>
+                    <symbol> ) </symbol>
+                    <symbol> ; </symbol>
+                </tokens>
+            '''
+        )
+    )
+
+    syntax_tokens = []
+
+    syntax_tokens += ce.return_xml_tag(ce.compare_token(ce.eat_token(),[LexicToken(type='keyword',value='let')])),
+    syntax_tokens += ce.return_xml_tag(ce.compare_token(ce.eat_token(),[LexicToken(type='identifier')])),
+    syntax_tokens += ce.return_xml_tag(ce.compare_token(ce.eat_token(),[LexicToken(type='symbol',value='=')])),
+    syntax_tokens += ce.compile_subroutine_call()
+    syntax_tokens += ce.return_xml_tag(ce.compare_token(ce.eat_token(),[LexicToken(type='symbol',value=';')])),
+
+    print(syntax_tokens)
+    flattened_statements = list(ce.flatten_statements(syntax_tokens))
+
 if __name__ == "__main__":
-    main()
+    main3()
