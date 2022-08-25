@@ -112,10 +112,30 @@ class CompilationEngine():
         pass
 
     '''
-        rule: 
+        rule: ('constructor' | 'function' | 'method') ('void' | type) subroutineName '(' parameterList ')' subroutineBody
     '''
     def compile_subroutine_dec(self):
-        pass
+        print('entered compile_subroutine_dec')
+        subroutine_dec = []
+
+        subroutine_dec += [
+            self.compare_token(
+                self.advance(),
+                [                     
+                    LexicToken(type='keyword',value='constructor'),
+                    LexicToken(type='keyword',value='function'),
+                    LexicToken(type='keyword',value='method'),
+                ]
+            ),
+            self.compile_type(),
+            self.compare_token(self.advance(),[LexicToken(type='identifier')]),
+            self.compare_token(self.advance(),[LexicToken(type='symbol',value='(')]),
+        ]
+        subroutine_dec.append(self.compile_parameter_list())
+        subroutine_dec.append(self.compare_token(self.advance(),[LexicToken(type='symbol',value=')')]))
+        subroutine_dec.append(self.compile_subroutine_body())
+        
+        return subroutine_dec
 
     '''
         ?: zero or one
@@ -138,7 +158,7 @@ class CompilationEngine():
         parameter_list = []
 
         parameter_list += [
-            self.compare_token(                                
+            self.compare_token(
                 self.advance(),
                 [                     
                     LexicToken(value='int'),
@@ -163,10 +183,25 @@ class CompilationEngine():
         return parameter_list
 
     '''
-        rule: 
+        rule:
     '''
-    def compile_subroutine_body(self):
-        pass
+    def compile_subroutine_body(self):        
+        print('entered compile_subroutine_body')
+        subroutine_body = []
+
+        current_token = self.advance()
+
+        if current_token.value in ['constructor','function','method']:
+            subroutine_body += [
+                self.compare_token(
+                    current_token,
+                    [                     
+                        LexicToken(type='keyword',value='constructor'),
+                        LexicToken(type='keyword',value='function'),
+                        LexicToken(type='keyword',value='method'),
+                    ]
+                ),
+            ]
 
     '''
         rule: 'var' type varName (',' varName)* ';'
@@ -202,7 +237,7 @@ class CompilationEngine():
         
         current_token = self.advance()
         if current_token.value == ',':
-            var_dec_list.append(self.return_xml_tag(current_token))
+            var_dec_list.append(current_token)
             var_dec_list += self.compile_var_dec_list()
         else:
             self.current_token_index -= 1
@@ -270,17 +305,16 @@ class CompilationEngine():
         rule: 'int' | 'char' | 'boolean' | className
     '''
     def compile_type(self):
-        return self.return_xml_tag(
-            self.compare_token(                                
+        return self.compare_token(                                
                 self.advance(),
                 [                     
                     LexicToken(value='int'),                                    
                     LexicToken(value='char'),
                     LexicToken(value='boolean'),
-                    LexicToken(type='identifier')
+                    LexicToken(value='void'),
+                    LexicToken(type='identifier'),
                 ]
             )
-        )
 
 def main():
     arguments_list = [
@@ -368,6 +402,24 @@ def main():
         )
     )
     print(ce.compile_var_dec())
+
+    # Test for subroutine declaration
+    ce = CompilationEngine(
+        ET.fromstring(
+            '''
+                <tokens>
+                    <keyword> constructor </keyword>
+                    <keyword> void </keyword>
+                    <identifier> teste </identifier>
+                    <symbol> ( </symbol>
+                    <keyword> char </keyword>
+                    <identifier> width2 </identifier>
+                    <symbol> ) </symbol>                    
+                </tokens>
+            '''
+        )
+    )
+    print(ce.compile_subroutine_dec())
 
 if __name__ == "__main__":
     main()
