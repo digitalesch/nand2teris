@@ -1,7 +1,4 @@
 # created code
-from operator import concat
-from posixpath import split
-from sys import exc_info
 from parser import Parser
 
 # built-in
@@ -46,7 +43,7 @@ class CompilationEngine():
     current_token_index : int = 0
 
     def __post_init__(self):
-        self.tokens = self.create_tokens()        
+        self.tokens = self.create_tokens()
 
     def create_tokens(self) -> list:
         return [LexicToken(tag.tag, tag.text.strip()) for tag in self.xml_tree.iter() if tag.tag != 'tokens']
@@ -66,7 +63,7 @@ class CompilationEngine():
     def return_xml_tag(self, lex_token) -> str:
         translate = {
             "<": '&lt;',
-            ">": '&gt;', 
+            ">": '&gt;',
             "'": '&quot;',
             "&": '&amp;'
         }
@@ -91,7 +88,7 @@ class CompilationEngine():
             both parameters will be compared
             [False]
     '''
-    def compare_token(self, input: LexicToken, expectation: LexicToken):        
+    def compare_token(self, input: LexicToken, expectation: LexicToken):
         if any([(input.type if token.type else None)==token.type and (input.value if token.value else None)==token.value for token in expectation]):
             return input
         else:
@@ -121,7 +118,7 @@ class CompilationEngine():
         subroutine_dec += [
             self.compare_token(
                 self.advance(),
-                [                     
+                [
                     LexicToken(type='keyword',value='constructor'),
                     LexicToken(type='keyword',value='function'),
                     LexicToken(type='keyword',value='method'),
@@ -160,7 +157,7 @@ class CompilationEngine():
         parameter_list += [
             self.compare_token(
                 self.advance(),
-                [                     
+                [
                     LexicToken(value='int'),
                     LexicToken(value='char'),
                     LexicToken(value='boolean'),
@@ -185,7 +182,7 @@ class CompilationEngine():
     '''
         rule: '{' varDec* statements '}'
     '''
-    def compile_subroutine_body(self):        
+    def compile_subroutine_body(self):
         print('entered compile_subroutine_body')
         subroutine_body = [
             self.compare_token(self.advance(),[LexicToken(type='symbol',value='{')])
@@ -197,7 +194,7 @@ class CompilationEngine():
         self.current_token_index -= 1
 
         # tests if variable declaration is needed
-        if current_token.value == 'var':            
+        if current_token.value == 'var':
             subroutine_body += self.compile_var_dec()
             print(f'sub {subroutine_body}')
         
@@ -213,7 +210,7 @@ class CompilationEngine():
         var_dec = []
         var_dec += [
             self.compare_token(self.advance(),[LexicToken(type='keyword',value='var')]),
-            self.compile_type()            
+            self.compile_type()
         ]
 
         # starts recursive list of variable names for rule: (',' varName)*
@@ -254,6 +251,7 @@ class CompilationEngine():
         print('entered compile_statements')
         statements = []
         
+        current_token = self.advance()
         if self.current_token.value == 'let':
             statements += self.compile_let()
         if self.current_token.value == 'if':
@@ -265,6 +263,12 @@ class CompilationEngine():
         if self.current_token.value == 'return':
             statements += self.compile_return()
         
+        current_token = self.advance()
+        self.current_token_index -= 1
+
+        if current_token.value in ['let','if','while','do','return']:
+            statements += self.compile_statements()
+
         return statements
 
     '''
@@ -274,7 +278,7 @@ class CompilationEngine():
         print('entered compile_let')
         let = [
             self.compare_token(self.current_token,[LexicToken(type='keyword',value='let')]),
-            self.compare_token(self.advance(),[LexicToken(type='identifier')]),            
+            self.compare_token(self.advance(),[LexicToken(type='identifier')]),
         ]
 
         current_token = self.advance()
@@ -291,25 +295,40 @@ class CompilationEngine():
         rule: 
     '''
     def compile_if(self):
-        pass
+        print('entered if statement')
+        statement = []
+
+        return statement
 
     '''
         rule: 
     '''
     def compile_while(self):
-        pass
+        print('entered wwgile statement')
+        statement = []
+
+        return statement
 
     '''
         rule: 
     '''
     def compile_do(self):
-        pass
+        print('entered do statement')
+        statement = []
+        print(self.current_token)
+
+        statement += self.compile_subroutine_call()
+
+        return statement
 
     '''
         rule: 
     '''
     def compile_return(self):
-        pass
+        print('entered return statement')
+        statement = []
+
+        return statement
 
     '''
         rule: term (op term)*
@@ -348,6 +367,7 @@ class CompilationEngine():
             integerConstant | stringConstant | keywordConstant | varName |
             varName '[' expression ']' | subroutineCall | '(' expression ')' | unaryOp term
     '''
+    # no null term possible
     def compile_term(self):
         print('entered compile_term')
         term = []
@@ -387,6 +407,10 @@ class CompilationEngine():
                     # gets subroutineName | (className | subroutineName) rule
                     self.current_token_index -= 1
                     self.compile_subroutine_call()
+                if current_token.value == '.':
+                    # gets subroutineName | (className | subroutineName) rule
+                    self.current_token_index -= 2
+                    self.compile_subroutine_call()
             else:
                 # sets back index, since its only varName and doesn't need to be expanded
                 self.current_token_index -= 1
@@ -394,6 +418,11 @@ class CompilationEngine():
         if self.current_token.value in ['-','~']:
             term.append(self.current_token)
             term += self.compile_term()
+        # checks for '(' expression ')'
+        if self.current_token.value in ['(']:
+            term.append(self.current_token)
+            term += self.compile_expression()
+            term.append(self.compare_token(self.advance(),[LexicToken(type='symbol',value=')')]))
 
         return term
 
@@ -402,10 +431,24 @@ class CompilationEngine():
     '''
     def compile_subroutine_call(self):
         print('entered compile_subroutine_call')
-        subroutine_call = [
-            self.compare_token(self.advance(),[LexicToken(type='identifier')]),
-            self.compare_token(self.advance(),[LexicToken(type='symbol',value='(')]),
-        ]
+        subroutine_call = [self.compare_token(self.advance(),[LexicToken(type='identifier')])]
+
+        # eats next token, to determine if its first or second option of or statement
+        current_token = self.advance()
+
+        # first rule
+        if current_token.value == '(':
+            # appends current token only
+            subroutine_call.append(current_token)
+        # second rule
+        if current_token.value == '.':
+            print('second')
+            # appends current token and next identifier
+            subroutine_call += [
+                current_token,
+                self.compare_token(self.advance(),[LexicToken(type='identifier')]),
+                self.compare_token(self.advance(),[LexicToken(value='(')]),
+            ]
 
         subroutine_call += self.compile_expression_list()
         subroutine_call.append(self.compare_token(self.advance(),[LexicToken(type='symbol',value=')')]))
@@ -415,6 +458,7 @@ class CompilationEngine():
     '''
         rule: (expression (',' expression)*)?
     '''
+    # null expression
     def compile_expression_list(self):
         print('entered compile_expression_list')
         expression_list = []
@@ -434,10 +478,10 @@ class CompilationEngine():
         rule: 'int' | 'char' | 'boolean' | className
     '''
     def compile_type(self):
-        return self.compare_token(                                
+        return self.compare_token(
                 self.advance(),
-                [                     
-                    LexicToken(value='int'),                                    
+                [
+                    LexicToken(value='int'),
                     LexicToken(value='char'),
                     LexicToken(value='boolean'),
                     LexicToken(value='void'),
@@ -447,7 +491,7 @@ class CompilationEngine():
 
 def main():
     arguments_list = [
-        {'name':'file_path','type':str,'help':'specifies the file / directory to be read'}        
+        {'name':'file_path','type':str,'help':'specifies the file / directory to be read'}
     ]
 
     parser = argparse.ArgumentParser()
@@ -467,7 +511,7 @@ def main():
 
     print(f'{os.path.join(os.getcwd(),args.file_path)}/MainTokens.xml')
 
-    if os.path.isfile(f'{os.path.join(os.getcwd(),args.file_path)}'):        
+    if os.path.isfile(f'{os.path.join(os.getcwd(),args.file_path)}'):
         split_path = os.path.split(args.file_path)
         file_path, file_name = split_path[0], split_path[1]
         print(f"{os.path.join(file_path,file_name.split('.')[0])}Tokens.xml")
@@ -493,6 +537,7 @@ def main():
 
 
 def main():
+    """
     # test for parameter list
     ce = CompilationEngine(
         ET.fromstring(
@@ -593,12 +638,57 @@ def main():
                     <symbol> [ </symbol>
                     <integerConstant> 4 </integerConstant>
                     <symbol> ] </symbol>
+                    <symbol> , </symbol>
+                    <integerConstant> 4 </integerConstant>
                     <symbol> ) </symbol>
                 </tokens>
             '''
         )
     )
     print(ce.compile_subroutine_call())
+
+    # Test for subroutine declaration with dot '.' notation
+    ce = CompilationEngine(
+        ET.fromstring(
+            '''
+                <tokens>
+                    <identifier> teste </identifier>
+                    <symbol> . </symbol>
+                    <identifier> getx </identifier>
+                    <symbol> ( </symbol>
+                    <integerConstant> 4 </integerConstant>
+                    <symbol> + </symbol>
+                    <identifier> teste </identifier>
+                    <symbol> [ </symbol>
+                    <integerConstant> 4 </integerConstant>
+                    <symbol> ] </symbol>
+                    <symbol> , </symbol>
+                    <integerConstant> 4 </integerConstant>
+                    <symbol> ) </symbol>
+                </tokens>
+            '''
+        )
+    )
+    print(ce.compile_subroutine_call())
+    """
+
+    # Test for expression list
+    ce = CompilationEngine(
+        ET.fromstring(
+            '''
+                <tokens>
+                    <symbol> ( </symbol>
+                    <identifier> teste </identifier>
+                    <symbol> + </symbol>
+                    <identifier> teste </identifier>
+                    <symbol> ) </symbol>
+                    <symbol> , </symbol>
+                    <identifier> teste </identifier>
+                </tokens>
+            '''
+        )
+    )
+    print(ce.compile_expression_list())
 
 if __name__ == "__main__":
     main()
