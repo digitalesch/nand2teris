@@ -43,7 +43,7 @@ class Parser():
         Return:
             None, saves the structure to file, with < token_type > token_value </ token_type > format
     '''
-    def write_tags(self, xml: ET, file_name: str):
+    def write_tags(self, xml: ET, file_name: str, base_path: str = None):
         translate = {
             "<": '&lt;',
             ">": '&gt;', 
@@ -52,9 +52,9 @@ class Parser():
         }
 
         all_descendants = ['<tokens>']+[f'<{child.tag}> {translate[child.text] if child.text in translate else child.text} </{child.tag}>' for child in list(xml.iter()) if child.text is not None]+['</tokens>']
-        with open(f'{self.file_path}/{file_name}Tokens.xml','w') as fp:
+        with open(f'{self.file_path if not base_path else base_path}/{file_name}Tokens.xml','w') as fp:
             fp.write('\n'.join(all_descendants)+'\n')
-        print(f'Saved content to {self.file_path}/{file_name}Tokens.xml')
+        print(f'Saved content to {self.file_path if not base_path else base_path}/{file_name}Tokens.xml')
 
     '''
         Desc:
@@ -64,14 +64,24 @@ class Parser():
             None, saves the parsed tokens from file code into "< file_name >Tokens.xml"
     '''
     def parse_files(self) -> None:
-        for file in os.listdir(self.file_path):            
-            if file.endswith(".jack"):
-                file_name = file.split('.')[0]
-                with open(f'{self.file_path}/{file}','r') as input_fp:                    
-                    code_lines = ''.join(input_fp.readlines())
-                print(''.join(code_lines))
-                xml = self.parse_tokens(code_lines)
-                self.write_tags(xml=xml,file_name=file_name)
+        if os.path.isfile(self.file_path):
+            base_path = os.path.split(self.file_path)
+            file_name = base_path[1].split('.')[0]
+            print(file_name,self.file_path, base_path)
+            with open(f'{self.file_path}','r') as input_fp:                    
+                code_lines = ''.join(input_fp.readlines())
+            print(''.join(code_lines))
+            xml = self.parse_tokens(code_lines)
+            self.write_tags(xml=xml,file_name=file_name,base_path=base_path[0])
+        else:
+            for file in os.listdir(self.file_path):            
+                if file.endswith(".jack"):
+                    file_name = file.split('.')[0]
+                    with open(f'{self.file_path}/{file}','r') as input_fp:                    
+                        code_lines = ''.join(input_fp.readlines())
+                    print(''.join(code_lines))
+                    xml = self.parse_tokens(code_lines)
+                    self.write_tags(xml=xml,file_name=file_name)
 
 def main():
     arguments_list = [
