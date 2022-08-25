@@ -190,14 +190,12 @@ class CompilationEngine():
         ]
 
         current_token = self.advance()
-        print(current_token)
         # moves index back, so function can treat it
         self.current_token_index -= 1
 
         # tests if variable declaration is needed
         if current_token.value == 'var':
-            subroutine_body += self.compile_var_dec()
-            print(f'sub {subroutine_body}')
+            subroutine_body += self.compile_var_dec()            
         
         subroutine_body += self.compile_statements()
 
@@ -305,7 +303,7 @@ class CompilationEngine():
         rule: 
     '''
     def compile_while(self):
-        print('entered wwgile statement')
+        print('entered while statement')
         statement = []
 
         return statement
@@ -316,8 +314,7 @@ class CompilationEngine():
     def compile_do(self):
         print('entered do statement')
         statement = []
-        print(self.current_token)
-
+        statement.append(self.compare_token(self.advance(),[LexicToken(type='keyword',value='do')]),)
         statement += self.compile_subroutine_call()
 
         return statement
@@ -342,7 +339,6 @@ class CompilationEngine():
 
         # compiles possible (op term)
         current_token = self.advance()
-        print(f'ct: {current_token}')
         if current_token.value in [
             '+',
             '-',
@@ -396,7 +392,6 @@ class CompilationEngine():
             # checks next token for 
             current_token = self.advance()
 
-            print(f'cur: {current_token}')
             if current_token.value in ['[', '(', '.']:
                 # rule: varName '[' expression ']'
                 if current_token.value == '[':
@@ -443,7 +438,6 @@ class CompilationEngine():
             subroutine_call.append(current_token)
         # second rule
         if current_token.value == '.':
-            print('second')
             # appends current token and next identifier
             subroutine_call += [
                 current_token,
@@ -465,13 +459,13 @@ class CompilationEngine():
         expression_list = []
         
         current_token = self.advance()
-        print(f'a: {current_token}')
+        self.current_token_index -= 1
         if any(
             [
                 current_token.type in ['integerConstant','stringConstant','identifier'],
                 current_token.value in ['true','false','null','this','(','-','~']
             ]
-        ):
+        ):            
             expression_list += self.compile_expression()
             
             current_token = self.advance()
@@ -480,9 +474,7 @@ class CompilationEngine():
                 expression_list += self.compile_expression_list()
             else:
                 self.current_token_index -= 1
-        else:
-            self.current_token_index -= 1
-
+        
         return expression_list
 
     '''
@@ -657,7 +649,7 @@ def main():
         )
     )
     print(ce.compile_subroutine_call())
-
+    """
     # Test for subroutine declaration with dot '.' notation
     ce = CompilationEngine(
         ET.fromstring(
@@ -667,21 +659,36 @@ def main():
                     <symbol> . </symbol>
                     <identifier> getx </identifier>
                     <symbol> ( </symbol>
-                    <integerConstant> 4 </integerConstant>
-                    <symbol> + </symbol>
                     <identifier> teste </identifier>
                     <symbol> [ </symbol>
                     <integerConstant> 4 </integerConstant>
                     <symbol> ] </symbol>
                     <symbol> , </symbol>
-                    <integerConstant> 4 </integerConstant>
+                    <integerConstant> 4 </integerConstant>                    
                     <symbol> ) </symbol>
                 </tokens>
             '''
         )
     )
     print(ce.compile_subroutine_call())
-    """
+
+    # Test for subroutine declaration with dot '.' notation and no parameters
+    ce = CompilationEngine(
+        ET.fromstring(
+            '''
+                <tokens>
+                    <identifier> teste </identifier>
+                    <symbol> . </symbol>
+                    <identifier> getx </identifier>
+                    <symbol> ( </symbol>                    
+                    <symbol> ) </symbol>
+                </tokens>
+            '''
+        )
+    )
+    print(ce.compile_subroutine_call())
+
+    #"""
     # Test for expression list
     ce = CompilationEngine(
         ET.fromstring(
@@ -708,7 +715,7 @@ def main():
             '''
         )
     )
-    print(ce.compile_expression_list())
+    print(f'Result: {ce.compile_expression_list()}')
     #"""
 
     # Test for empty expression list
@@ -720,7 +727,26 @@ def main():
             '''
         )
     )
-    print(ce.compile_expression_list())
+    print(f'Result: {ce.compile_expression_list()}')
+
+    # Test for do statement
+    ce = CompilationEngine(
+        ET.fromstring(
+            '''
+                <tokens>
+                    <keyword> do </keyword>
+                    <identifier> subroutine_call </identifier>
+                    <symbol> ( </symbol>
+                    <identifier> teste </identifier>
+                    <symbol> + </symbol>
+                    <identifier> teste </identifier>
+                    <symbol> ) </symbol>
+                    <symbol> ) </symbol>
+                </tokens>
+            '''
+        )
+    )
+    print(f'Result: {ce.compile_do()}')
 
 if __name__ == "__main__":
     main()
