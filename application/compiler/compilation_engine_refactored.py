@@ -102,7 +102,7 @@ class CompilationEngine():
     '''
     def compile_class(self):
         print('entered compile_class_statement compilation')
-        return [
+        class_dec =  [
             self.compare_token(self.advance(),[LexicToken(type='keyword',value='class')]),
             self.compare_token(self.advance(),[LexicToken(type='identifier')]),
             self.compare_token(self.advance(),[LexicToken(type='symbol',value='{')]),
@@ -110,6 +110,10 @@ class CompilationEngine():
             self.compile_subroutine_dec(),
             self.compare_token(self.advance(),[LexicToken(type='symbol',value='}')]),
         ]
+
+        #print(self.compile_subroutine_dec())
+
+        return class_dec
 
     '''
         rule: 
@@ -178,7 +182,6 @@ class CompilationEngine():
                 self.compare_token(self.advance(),[LexicToken(type='symbol',value='(')]),
             ]
             subroutine_dec += self.compile_parameter_list()
-            #print(self.current_token)
             subroutine_dec.append(self.compare_token(self.advance(),[LexicToken(type='symbol',value=')')]))
             subroutine_dec += self.compile_subroutine_body()
         else:
@@ -260,7 +263,7 @@ class CompilationEngine():
 
         # tests if variable declaration is needed
         if current_token.value == 'var':
-            subroutine_body += self.compile_var_dec()            
+            subroutine_body += self.compile_var_dec()
         
         subroutine_body += self.compile_statements()
 
@@ -282,9 +285,9 @@ class CompilationEngine():
         var_dec.append(self.compare_token(self.advance(),[LexicToken(type='symbol',value=';')]))
 
         current_token = self.advance()
+        # returns to var token, so recursion can deal with it
+        self.current_token_index -= 1
         if current_token.value == 'var':
-            # returns to var token, so recursion can deal with it
-            self.current_token_index -= 1
             var_dec += self.compile_var_dec()
         
         return var_dec
@@ -304,8 +307,7 @@ class CompilationEngine():
             var_dec_list += self.compile_var_dec_list()
         else:
             self.current_token_index -= 1
-            return var_dec_list
-
+            
         return var_dec_list
 
     '''
@@ -316,6 +318,7 @@ class CompilationEngine():
         statements = []
         
         current_token = self.advance()
+        print(f'statement_token: {self.current_token}')
         if self.current_token.value == 'let':
             statements += self.compile_let()
         if self.current_token.value == 'if':
@@ -378,11 +381,10 @@ class CompilationEngine():
     '''
     def compile_do(self):
         print('entered do statement')
-        statement = []
-        statement.append(self.compare_token(self.advance(),[LexicToken(type='keyword',value='do')]),)
-        statement += self.compile_subroutine_call()
-
-        return statement
+        return [
+            self.compile_subroutine_call(),
+            self.compare_token(self.advance(),[LexicToken(type='symbol',value=';')])
+        ]
 
     '''
         rule: 
@@ -873,6 +875,18 @@ def main():
                     <identifier> i </identifier>
                     <symbol> , </symbol>
                     <identifier> j </identifier>
+                    <symbol> ; </symbol>
+                    <keyword> do </keyword>
+                    <identifier> Game </identifier>
+                    <symbol> . </symbol>
+                    <identifier> run </identifier>
+                    <symbol> ( </symbol>
+                    <symbol> ) </symbol>
+                    <symbol> ; </symbol>
+                    <keyword> do </keyword>
+                    <identifier> run </identifier>
+                    <symbol> ( </symbol>
+                    <symbol> ) </symbol>
                     <symbol> ; </symbol>
                     <symbol> } </symbol>
                 </tokens>
