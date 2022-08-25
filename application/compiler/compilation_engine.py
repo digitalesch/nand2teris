@@ -410,6 +410,7 @@ class CompilationEngine():
 
         # compiles possible (op term)
         current_token = self.eat_token()
+        print(f'ct: {current_token}')
         if current_token.value in [
             '+',
             '-',
@@ -427,7 +428,7 @@ class CompilationEngine():
             self.current_token_index -= 1
 
         expression += ['</expression>']
-
+        print(f'exited expression {expression}')
         return expression
 
     '''
@@ -464,6 +465,8 @@ class CompilationEngine():
                 if current_token.value == '.':
                     self.current_token_index -= 2
                     term += self.compile_subroutine_call()
+                if current_token.value not in ['.','[']:
+                    self.current_token_index -= 1
         if (
             current_token.value in [
                 '~',
@@ -480,35 +483,11 @@ class CompilationEngine():
         ):
             term += self.compile_expression()
             term.append(self.return_xml_tag(self.compare_token(self.eat_token(),[LexicToken(type='symbol',value=')')])))
-        
+
+        if (current_token.value == ')'):
+            self.current_token_index -= 1
+        print(f'term is {term}')
         return term
-        
-    '''
-    def compile_term(self):        
-        print('entered term compilation')
-
-        current_token = self.eat_token()
-        
-
-        return [
-            '<term>',
-            self.return_xml_tag(
-                self.compare_token(
-                    self.eat_token(),
-                    [
-                        LexicToken(type='integerConstant'),
-                        LexicToken(type='stringConstant'),
-                        LexicToken(type='identifier'),
-                        LexicToken(value='true'),
-                        LexicToken(value='false'),
-                        LexicToken(value='null'),
-                        LexicToken(value='this'),
-                    ]
-                ),
-            ),
-            '</term>',
-        ]
-    '''
 
     '''
         def: (type identifier (',' type identifier)*)*
@@ -668,65 +647,8 @@ def main():
         fp.write('\n'.join(flattened_statements)+'\n')
 
 
-def main2():
-    ce = CompilationEngine(
-        ET.fromstring(
-            '''
-                <tokens>
-                    <symbol> ( </symbol>
-                    <identifier> x </identifier>
-                    <symbol> , </symbol>
-                    <identifier> y </identifier>
-                    <symbol> , </symbol>
-                    <identifier> x </identifier>
-                    <symbol> + </symbol>
-                    <identifier> size </identifier>
-                    <symbol> , </symbol>
-                    <identifier> y </identifier>
-                    <symbol> + </symbol>
-                    <identifier> size </identifier>
-                    <symbol> ) </symbol>
-                </tokens>
-            '''
-        )
-    )
+def main2():    
 
-    syntax_tokens = []
-
-    syntax_tokens += ce.return_xml_tag(ce.compare_token(ce.eat_token(),[LexicToken(type='symbol',value='(')])),
-    syntax_tokens += ce.compile_expression_list()
-    syntax_tokens += ce.return_xml_tag(ce.compare_token(ce.eat_token(),[LexicToken(type='symbol',value=')')])),
-
-    print(syntax_tokens)
-    flattened_statements = list(ce.flatten_statements(syntax_tokens))
-
-def main3():
-    # let length = Keyboard.readInt("HOW MANY NUMBERS? ");
-    ce = CompilationEngine(
-        ET.fromstring(
-            '''
-                <tokens>
-                    <identifier> Keyboard </identifier>
-                    <symbol> . </symbol>
-                    <identifier> readInt </identifier>
-                    <symbol> ( </symbol>
-                    <symbol> ) </symbol>
-                </tokens>
-            '''
-        )
-    )
-
-    syntax_tokens = []
-
-    syntax_tokens += ce.compile_term()
-    #syntax_tokens += ce.compile_term()
-    #syntax_tokens += ce.compile_term()
-    #syntax_tokens += ce.compile_term()
-
-    print(syntax_tokens)
-    flattened_statements = list(ce.flatten_statements(syntax_tokens))
-
-def main4():
     # let length = Keyboard.readInt("HOW MANY NUMBERS? ");
     ce = CompilationEngine(
         ET.fromstring(
@@ -739,7 +661,7 @@ def main4():
                     <symbol> . </symbol>
                     <identifier> readInt </identifier>
                     <symbol> ( </symbol>
-                    <stringConstant> HOW MANY NUMBERS? </stringConstant>
+                    
                     <symbol> ) </symbol>
                     <symbol> ; </symbol>
                 </tokens>
@@ -752,11 +674,10 @@ def main4():
     syntax_tokens += ce.return_xml_tag(ce.compare_token(ce.eat_token(),[LexicToken(type='keyword',value='let')])),
     syntax_tokens += ce.return_xml_tag(ce.compare_token(ce.eat_token(),[LexicToken(type='identifier')])),
     syntax_tokens += ce.return_xml_tag(ce.compare_token(ce.eat_token(),[LexicToken(type='symbol',value='=')])),
-    syntax_tokens += ce.compile_subroutine_call()
+    syntax_tokens += ce.compile_term()
     syntax_tokens += ce.return_xml_tag(ce.compare_token(ce.eat_token(),[LexicToken(type='symbol',value=';')])),
 
     print(syntax_tokens)
-    flattened_statements = list(ce.flatten_statements(syntax_tokens))
 
 if __name__ == "__main__":
-    main3()
+    main()

@@ -170,10 +170,40 @@ class CompilationEngine():
         pass
 
     '''
-        rule: 
+        rule: 'var' type varName (',' varName)* ';'
     '''
     def compile_var_dec(self):
-        pass
+        print('entered compile_var_dec')
+        var_dec = []
+
+        var_dec += [
+            self.compare_token(self.advance(),[LexicToken(type='keyword',value='var')]),
+            self.compile_type(),
+            self.compile_var_dec_list()
+        ]
+
+        return var_dec
+
+    '''
+        rule: varName (',' varName)*
+    '''
+    def compile_var_dec_list(self):
+        print('entered compile_var_dec_list')
+        var_dec_list = [
+            self.compare_token(self.advance(),[LexicToken(type='identifier')]),
+        ]
+        
+        current_token = self.advance()
+        if current_token.value == ',':
+            var_dec_list += [
+                self.return_xml_tag(current_token),
+                self.compile_var_dec_list(),
+            ]
+        else:
+            self.current_token_index -= 1
+            return var_dec_list
+
+        return var_dec_list
 
     '''
         rule: 
@@ -219,6 +249,8 @@ class CompilationEngine():
 
     '''
         rule: 
+            integerConstant | stringConstant | keywordConstant | varName |
+            varName '[' expression ']' | subroutineCall | '(' expression ')' | unaryOp term
     '''
     def compile_term(self):
         pass
@@ -293,6 +325,7 @@ def main():
 
 
 def main():
+    # test for parameter list
     ce = CompilationEngine(
         ET.fromstring(
             '''
@@ -306,12 +339,22 @@ def main():
             '''
         )
     )
+    print(ce.compile_parameter_list())
 
-    syntax_tokens = []
-
-    syntax_tokens += ce.compile_parameter_list()
-
-    print(syntax_tokens)
+    ce = CompilationEngine(
+        ET.fromstring(
+            '''
+                <tokens>
+                    <keyword> var </keyword>
+                    <keyword> int </keyword>
+                    <identifier> width </identifier>
+                    <symbol> , </symbol>
+                    <identifier> width2 </identifier>
+                </tokens>
+            '''
+        )
+    )
+    print(ce.compile_var_dec())
 
 if __name__ == "__main__":
     main()
