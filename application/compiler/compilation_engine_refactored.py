@@ -40,6 +40,7 @@ class LexicToken():
 @dataclass
 class CompilationEngine():
     xml_tree: ET
+    current_token: LexicToken = None
     current_token_index : int = 0
 
     def __post_init__(self):
@@ -462,13 +463,23 @@ class CompilationEngine():
     def compile_expression_list(self):
         print('entered compile_expression_list')
         expression_list = []
-    
-        expression_list += self.compile_expression()
         
         current_token = self.advance()
-        if current_token.value == ',':
-            expression_list.append(current_token)
-            expression_list += self.compile_expression_list()
+        print(f'a: {current_token}')
+        if any(
+            [
+                current_token.type in ['integerConstant','stringConstant','identifier'],
+                current_token.value in ['true','false','null','this','(','-','~']
+            ]
+        ):
+            expression_list += self.compile_expression()
+            
+            current_token = self.advance()
+            if current_token.value == ',':
+                expression_list.append(current_token)
+                expression_list += self.compile_expression_list()
+            else:
+                self.current_token_index -= 1
         else:
             self.current_token_index -= 1
 
@@ -671,19 +682,40 @@ def main():
     )
     print(ce.compile_subroutine_call())
     """
-
     # Test for expression list
     ce = CompilationEngine(
         ET.fromstring(
             '''
                 <tokens>
                     <symbol> ( </symbol>
+                    <symbol> ( </symbol>
                     <identifier> teste </identifier>
                     <symbol> + </symbol>
                     <identifier> teste </identifier>
                     <symbol> ) </symbol>
+                    <symbol> + </symbol>
+                    <integerConstant> 5 </integerConstant>
+                    <symbol> ) </symbol>
+                    <symbol> , </symbol>
+                    <symbol> ( </symbol>
+                    <integerConstant> 5 </integerConstant>
+                    <symbol> / </symbol>
+                    <integerConstant> 3 </integerConstant>
+                    <symbol> ) </symbol>
                     <symbol> , </symbol>
                     <identifier> teste </identifier>
+                </tokens>
+            '''
+        )
+    )
+    print(ce.compile_expression_list())
+    #"""
+
+    # Test for empty expression list
+    ce = CompilationEngine(
+        ET.fromstring(
+            '''
+                <tokens>                    
                 </tokens>
             '''
         )
