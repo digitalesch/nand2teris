@@ -153,11 +153,10 @@ class CompilationEngine():
         # advances next token, to check if recursion is needed for another parameter
         current_token = self.advance()
         if current_token.value == ',':
-            parameter_list += [
-                self.return_xml_tag(current_token),
-                self.compile_parameter_list(),
-            ]
+            parameter_list.append(self.return_xml_tag(current_token))
+            parameter_list += self.compile_parameter_list()
         else:
+            # returns to previous token and exits function
             self.current_token_index -= 1
             return parameter_list
 
@@ -175,13 +174,21 @@ class CompilationEngine():
     def compile_var_dec(self):
         print('entered compile_var_dec')
         var_dec = []
-
         var_dec += [
             self.compare_token(self.advance(),[LexicToken(type='keyword',value='var')]),
-            self.compile_type(),
-            self.compile_var_dec_list()
+            self.compile_type()            
         ]
 
+        # starts recursive list of variable names for rule: (',' varName)*
+        var_dec += self.compile_var_dec_list()
+        var_dec.append(self.compare_token(self.advance(),[LexicToken(type='symbol',value=';')]))
+
+        current_token = self.advance()
+        if current_token.value == 'var':
+            # returns to var token, so recursion can deal with it
+            self.current_token_index -= 1
+            var_dec += self.compile_var_dec()
+        
         return var_dec
 
     '''
@@ -195,10 +202,8 @@ class CompilationEngine():
         
         current_token = self.advance()
         if current_token.value == ',':
-            var_dec_list += [
-                self.return_xml_tag(current_token),
-                self.compile_var_dec_list(),
-            ]
+            var_dec_list.append(self.return_xml_tag(current_token))
+            var_dec_list += self.compile_var_dec_list()
         else:
             self.current_token_index -= 1
             return var_dec_list
@@ -341,6 +346,7 @@ def main():
     )
     print(ce.compile_parameter_list())
 
+    # Test for var list
     ce = CompilationEngine(
         ET.fromstring(
             '''
@@ -350,6 +356,13 @@ def main():
                     <identifier> width </identifier>
                     <symbol> , </symbol>
                     <identifier> width2 </identifier>
+                    <symbol> ; </symbol>
+                    <keyword> var </keyword>
+                    <keyword> char </keyword>
+                    <identifier> test </identifier>
+                    <symbol> , </symbol>
+                    <identifier> test2 </identifier>
+                    <symbol> ; </symbol>
                 </tokens>
             '''
         )
