@@ -131,10 +131,10 @@ class CompilationEngine():
             self.compare_token(self.advance(),[LexicToken(type='identifier')]),
             self.compare_token(self.advance(),[LexicToken(type='symbol',value='(')]),
         ]
-        subroutine_dec.append(self.compile_parameter_list())
+        subroutine_dec += self.compile_parameter_list()
         subroutine_dec.append(self.compare_token(self.advance(),[LexicToken(type='symbol',value=')')]))
-        subroutine_dec.append(self.compile_subroutine_body())
-        
+        subroutine_dec += self.compile_subroutine_body()
+
         return subroutine_dec
 
     '''
@@ -183,25 +183,27 @@ class CompilationEngine():
         return parameter_list
 
     '''
-        rule:
+        rule: '{' varDec* statements '}'
     '''
     def compile_subroutine_body(self):        
         print('entered compile_subroutine_body')
-        subroutine_body = []
+        subroutine_body = [
+            self.compare_token(self.advance(),[LexicToken(type='symbol',value='{')])
+        ]
 
         current_token = self.advance()
+        print(current_token)
+        # moves index back, so function can treat it
+        self.current_token_index -= 1
 
-        if current_token.value in ['constructor','function','method']:
-            subroutine_body += [
-                self.compare_token(
-                    current_token,
-                    [                     
-                        LexicToken(type='keyword',value='constructor'),
-                        LexicToken(type='keyword',value='function'),
-                        LexicToken(type='keyword',value='method'),
-                    ]
-                ),
-            ]
+        # tests if variable declaration is needed
+        if current_token.value == 'var':            
+            subroutine_body += self.compile_var_dec()
+            print(f'sub {subroutine_body}')
+        
+        subroutine_body += self.compile_statements()
+
+        return subroutine_body
 
     '''
         rule: 'var' type varName (',' varName)* ';'
@@ -246,16 +248,44 @@ class CompilationEngine():
         return var_dec_list
 
     '''
-        rule: 
+        rule: letStatement | ifStatment | whileStatment | doStatement | returnStatement
     '''
     def compile_statements(self):
-        pass
+        print('entered compile_statements')
+        statements = []
+        
+        if self.current_token.value == 'let':
+            statements += self.compile_let()
+        if self.current_token.value == 'if':
+            statements += self.compile_if()
+        if self.current_token.value == 'while':
+            statements += self.compile_while()
+        if self.current_token.value == 'do':
+            statements += self.compile_do()
+        if self.current_token.value == 'return':
+            statements += self.compile_return()
+        
+        return statements
 
     '''
-        rule: 
+        rule: 'let' varName('[' expreession ']')? '=' expression ';'
     '''
     def compile_let(self):
-        pass
+        print('entered compile_let')
+        let = [
+            self.compare_token(self.current_token,[LexicToken(type='keyword',value='let')]),
+            self.compare_token(self.advance(),[LexicToken(type='identifier')]),            
+        ]
+
+        current_token = self.advance()
+        # checks if expression evaluation is needed
+        if current_token.value == '[':
+            let += self.compile_expression()
+            let.append(self.compare_token(self.advance(),[LexicToken(type='symbol',value=']')]))
+        else:
+            self.compare_token(current_token,[LexicToken(type='symbol',value='=')])
+
+        return let
 
     '''
         rule: 
@@ -282,10 +312,36 @@ class CompilationEngine():
         pass
 
     '''
-        rule: 
+        rule: term (op term)*
     '''
     def compile_expression(self):
-        pass
+        print('entered expression compilation')
+        expression = ['<expression>']
+        # compile term
+        expression += self.compile_term()
+
+        # compiles possible (op term)
+        current_token = self.advance()
+        print(f'ct: {current_token}')
+        if current_token.value in [
+            '+',
+            '-',
+            '*',
+            '/',
+            '&',
+            '|',
+            '<',
+            '>',
+            '=',
+        ]:
+            expression.append(current_token)
+            expression.append(self.compile_term())
+        else:
+            self.current_token_index -= 1
+
+        expression += ['</expression>']
+        print(f'exited expression {expression}')
+        return expression
 
     '''
         rule: 
@@ -293,13 +349,86 @@ class CompilationEngine():
             varName '[' expression ']' | subroutineCall | '(' expression ')' | unaryOp term
     '''
     def compile_term(self):
-        pass
+        print('entered compile_term')
+        term = []
+
+        term += [
+            self.compare_token(
+                self.advance(),
+                [                     
+                    LexicToken(type='integerConstant'),
+                    LexicToken(type='stringConstant'),
+                    LexicToken(value='true'),
+                    LexicToken(value='false'),
+                    LexicToken(value='null'),
+                    LexicToken(value='this'),
+                    LexicToken(type='identifier'),
+                    LexicToken(value='('),
+                    LexicToken(value='-'),
+                    LexicToken(value='~'),
+                ]
+            ),
+        ]
+
+        # checks for varName | varName '[' expression ']' | subroutineCall rules
+        if self.current_token.type == 'identifier':
+            # checks next token for 
+            current_token = self.advance()
+
+            print(f'cur: {current_token}')
+            if current_token.value in ['[', '(', '.']:
+                # rule: varName '[' expression ']'
+                if current_token.value == '[':
+                    term.append(self.compare_token(current_token,[LexicToken(type='symbol',value='[')]))
+                    term += self.compile_expression()
+                    term.append(self.compare_token(self.advance(),[LexicToken(type='symbol',value=']')]))
+                # compile subroutinecall
+                if current_token.value == '(':
+                    # gets subroutineName | (className | subroutineName) rule
+                    self.current_token_index -= 1
+                    self.compile_subroutine_call()
+            else:
+                # sets back index, since its only varName and doesn't need to be expanded
+                self.current_token_index -= 1
+        # checks for unaryOp term rule
+        if self.current_token.value in ['-','~']:
+            term.append(self.current_token)
+            term += self.compile_term()
+
+        return term
 
     '''
-        rule: 
+        rule: subroutineName '(' expressionList ')' | (className | varName) '.' subroutineName '(' expressionList ')' 
+    '''
+    def compile_subroutine_call(self):
+        print('entered compile_subroutine_call')
+        subroutine_call = [
+            self.compare_token(self.advance(),[LexicToken(type='identifier')]),
+            self.compare_token(self.advance(),[LexicToken(type='symbol',value='(')]),
+        ]
+
+        subroutine_call += self.compile_expression_list()
+        subroutine_call.append(self.compare_token(self.advance(),[LexicToken(type='symbol',value=')')]))
+
+        return subroutine_call
+
+    '''
+        rule: (expression (',' expression)*)?
     '''
     def compile_expression_list(self):
-        pass
+        print('entered compile_expression_list')
+        expression_list = []
+    
+        expression_list += self.compile_expression()
+        
+        current_token = self.advance()
+        if current_token.value == ',':
+            expression_list.append(current_token)
+            expression_list += self.compile_expression_list()
+        else:
+            self.current_token_index -= 1
+
+        return expression_list
 
     '''
         rule: 'int' | 'char' | 'boolean' | className
@@ -414,12 +543,62 @@ def main():
                     <symbol> ( </symbol>
                     <keyword> char </keyword>
                     <identifier> width2 </identifier>
-                    <symbol> ) </symbol>                    
+                    <symbol> ) </symbol>
+                    <symbol> { </symbol>
+                    <keyword> var </keyword>
+                    <keyword> char </keyword>
+                    <identifier> test </identifier>
+                    <symbol> , </symbol>
+                    <identifier> test2 </identifier>
+                    <symbol> ; </symbol>
+                    <keyword> var </keyword>
+                    <keyword> int </keyword>
+                    <identifier> test3 </identifier>
+                    <symbol> ; </symbol>
+                    <keyword> let </keyword>
+                    <identifier> test4 </identifier>
+                    <symbol> = </symbol>
+                    <symbol> } </symbol>
                 </tokens>
             '''
         )
     )
     print(ce.compile_subroutine_dec())
+
+    # Test for subroutine declaration
+    ce = CompilationEngine(
+        ET.fromstring(
+            '''
+                <tokens>
+                    <identifier> teste </identifier>
+                    <symbol> [ </symbol>
+                    <integerConstant> 4 </integerConstant>
+                    <symbol> ] </symbol>
+                </tokens>
+            '''
+        )
+    )
+    print(ce.compile_term())
+
+    # Test for subroutine declaration
+    ce = CompilationEngine(
+        ET.fromstring(
+            '''
+                <tokens>
+                    <identifier> teste </identifier>
+                    <symbol> ( </symbol>
+                    <integerConstant> 4 </integerConstant>
+                    <symbol> + </symbol>
+                    <identifier> teste </identifier>
+                    <symbol> [ </symbol>
+                    <integerConstant> 4 </integerConstant>
+                    <symbol> ] </symbol>
+                    <symbol> ) </symbol>
+                </tokens>
+            '''
+        )
+    )
+    print(ce.compile_subroutine_call())
 
 if __name__ == "__main__":
     main()
