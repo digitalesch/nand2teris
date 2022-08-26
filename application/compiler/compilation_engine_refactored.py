@@ -313,28 +313,32 @@ class CompilationEngine():
     '''
         rule: letStatement | ifStatment | whileStatment | doStatement | returnStatement
     '''
+    # missing null statement
     def compile_statements(self):
         print('entered compile_statements')
         statements = []
         
         current_token = self.advance()
-        print(f'statement_token: {self.current_token}')
-        if self.current_token.value == 'let':
-            statements += self.compile_let()
-        if self.current_token.value == 'if':
-            statements += self.compile_if()
-        if self.current_token.value == 'while':
-            statements += self.compile_while()
-        if self.current_token.value == 'do':
-            statements += self.compile_do()
-        if self.current_token.value == 'return':
-            statements += self.compile_return()
-        
-        current_token = self.advance()
-        self.current_token_index -= 1
-
         if current_token.value in ['let','if','while','do','return']:
-            statements += self.compile_statements()
+            print(f'statement_token: {self.current_token}')
+            if self.current_token.value == 'let':
+                statements += self.compile_let()
+            if self.current_token.value == 'if':
+                statements += self.compile_if()
+            if self.current_token.value == 'while':
+                statements += self.compile_while()
+            if self.current_token.value == 'do':
+                statements += self.compile_do()
+            if self.current_token.value == 'return':
+                statements += self.compile_return()
+            
+            current_token = self.advance()
+            self.current_token_index -= 1
+
+            if current_token.value in ['let','if','while','do','return']:
+                statements += self.compile_statements()
+        else:
+            self.current_token_index -= 1
 
         return statements
 
@@ -367,9 +371,35 @@ class CompilationEngine():
     '''
     def compile_if(self):
         print('entered if statement')
-        statement = []
+        if_statement = [
+            self.compare_token(self.current_token,[LexicToken(type='keyword',value='if')]),
+            self.compare_token(self.advance(),[LexicToken(type='symbol',value='(')]),
+        ]
 
-        return statement
+        if_statement += self.compile_expression()
+        if_statement += [
+            self.compare_token(self.advance(),[LexicToken(type='symbol',value=')')]),
+            self.compare_token(self.advance(),[LexicToken(type='symbol',value='{')]),
+        ]
+
+        if_statement += self.compile_statements()
+        if_statement.append(self.compare_token(self.advance(),[LexicToken(type='symbol',value='}')]))
+
+        current_token = self.advance()
+        print(f'if {current_token}')
+        # checks if expression evaluation is needed
+        if current_token.value == 'else':
+            if_statement += [
+                current_token,
+                self.compare_token(self.advance(),[LexicToken(type='symbol',value='{')])
+            ]
+
+            if_statement += self.compile_statements()
+            if_statement.append(self.compare_token(self.advance(),[LexicToken(type='symbol',value='}')]))
+        else:
+            self.current_token_index -= 1            
+
+        return if_statement
 
     '''
         rule: 
@@ -897,6 +927,29 @@ def main():
                     <symbol> = </symbol>
                     <integerConstant> 5 </integerConstant>
                     <symbol> ; </symbol>
+                    <keyword> if </keyword>
+                    <symbol> ( </symbol>
+                    <stringConstant> false </stringConstant>
+                    <symbol> ) </symbol>
+                    <symbol> { </symbol>
+                    <keyword> do </keyword>
+                    <identifier> Game </identifier>
+                    <symbol> . </symbol>
+                    <identifier> run </identifier>
+                    <symbol> ( </symbol>
+                    <symbol> ) </symbol>
+                    <symbol> ; </symbol>
+                    <symbol> } </symbol>
+                    <keyword> else </keyword>
+                    <symbol> { </symbol>
+                    <keyword> do </keyword>
+                    <identifier> Game </identifier>
+                    <symbol> . </symbol>
+                    <identifier> run </identifier>
+                    <symbol> ( </symbol>
+                    <symbol> ) </symbol>
+                    <symbol> ; </symbol>
+                    <symbol> } </symbol>
                     <symbol> } </symbol>
                 </tokens>
             '''
