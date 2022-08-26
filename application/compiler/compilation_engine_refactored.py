@@ -266,7 +266,7 @@ class CompilationEngine():
             subroutine_body += self.compile_var_dec()
         
         subroutine_body += self.compile_statements()
-
+        print(subroutine_body)
         return subroutine_body
 
     '''
@@ -343,7 +343,7 @@ class CompilationEngine():
     '''
     def compile_let(self):
         print('entered compile_let')
-        let = [
+        let_statement = [
             self.compare_token(self.current_token,[LexicToken(type='keyword',value='let')]),
             self.compare_token(self.advance(),[LexicToken(type='identifier')]),
         ]
@@ -351,12 +351,16 @@ class CompilationEngine():
         current_token = self.advance()
         # checks if expression evaluation is needed
         if current_token.value == '[':
-            let += self.compile_expression()
-            let.append(self.compare_token(self.advance(),[LexicToken(type='symbol',value=']')]))
+            let_statement += self.compile_expression()
+            let_statement.append(self.compare_token(self.advance(),[LexicToken(type='symbol',value=']')]))
         else:
-            self.compare_token(current_token,[LexicToken(type='symbol',value='=')])
+            let_statement.append(self.compare_token(current_token,[LexicToken(type='symbol',value='=')]))
+            let_statement += self.compile_expression()
 
-        return let
+        let_statement.append(self.compare_token(self.advance(),[LexicToken(type='symbol',value=';')]))
+
+        print(let_statement)
+        return let_statement
 
     '''
         rule: 
@@ -887,6 +891,11 @@ def main():
                     <identifier> run </identifier>
                     <symbol> ( </symbol>
                     <symbol> ) </symbol>
+                    <symbol> ; </symbol>
+                    <keyword> let </keyword>
+                    <identifier> a </identifier>
+                    <symbol> = </symbol>
+                    <integerConstant> 5 </integerConstant>
                     <symbol> ; </symbol>
                     <symbol> } </symbol>
                 </tokens>
