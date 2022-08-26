@@ -406,9 +406,23 @@ class CompilationEngine():
     '''
     def compile_while(self):
         print('entered while statement')
-        statement = []
+        while_statement = []
 
-        return statement
+        while_statement = [
+            self.compare_token(self.current_token,[LexicToken(type='keyword',value='while')]),
+            self.compare_token(self.advance(),[LexicToken(type='symbol',value='(')]),
+        ]
+
+        while_statement += self.compile_expression()
+        while_statement += [
+            self.compare_token(self.advance(),[LexicToken(type='symbol',value=')')]),
+            self.compare_token(self.advance(),[LexicToken(type='symbol',value='{')]),
+        ]
+
+        while_statement += self.compile_statements()
+        while_statement.append(self.compare_token(self.advance(),[LexicToken(type='symbol',value='}')]))
+
+        return while_statement
 
     '''
         rule: 
@@ -948,6 +962,17 @@ def main():
                     <identifier> run </identifier>
                     <symbol> ( </symbol>
                     <symbol> ) </symbol>
+                    <symbol> ; </symbol>
+                    <symbol> } </symbol>
+                    <keyword> while </keyword>
+                    <symbol> ( </symbol>
+                    <stringConstant> true </stringConstant>
+                    <symbol> ) </symbol>
+                    <symbol> { </symbol>
+                    <keyword> let </keyword>
+                    <identifier> a </identifier>
+                    <symbol> = </symbol>
+                    <integerConstant> 5 </integerConstant>
                     <symbol> ; </symbol>
                     <symbol> } </symbol>
                     <symbol> } </symbol>
