@@ -439,9 +439,21 @@ class CompilationEngine():
     '''
     def compile_return(self):
         print('entered return statement')
-        statement = []
+        return_statement = []
 
-        return statement
+        return_statement.append(self.compare_token(self.current_token,[LexicToken(type='keyword',value='return')]))
+        
+        current_token = self.advance()
+        # no expression is passed
+        print(current_token)
+        if current_token.value == ';':
+            return_statement.append(current_token)
+        else:
+            self.current_token_index -= 1
+            return_statement += self.compile_expression()
+            return_statement.append(self.compare_token(self.advance(),[LexicToken(type='symbol',value=';')]))
+
+        return return_statement
 
     '''
         rule: term (op term)*
@@ -973,6 +985,9 @@ def main():
                     <identifier> a </identifier>
                     <symbol> = </symbol>
                     <integerConstant> 5 </integerConstant>
+                    <symbol> ; </symbol>
+                    <keyword> return </keyword>
+                    <stringConstant> true </stringConstant>
                     <symbol> ; </symbol>
                     <symbol> } </symbol>
                     <symbol> } </symbol>
