@@ -56,10 +56,10 @@ class CompilationEngine():
         if self.has_more_tokens():
             self.current_token = self.tokens[self.current_token_index]
             self.current_token_index += 1
+            print(f'current token is: {self.current_token}')
             return self.current_token
         else:
-            return LexicToken(type='quit',value='end')
-        print(f'current token: {self.current_token}')
+            return LexicToken(type='quit',value='end')        
     
     def return_xml_tag(self, lex_token) -> str:
         translate = {
@@ -68,7 +68,11 @@ class CompilationEngine():
             "'": '&quot;',
             "&": '&amp;'
         }
-        return f'<{lex_token.type}> {translate[lex_token.value] if lex_token.value in translate else lex_token.value} </{lex_token.type}>'
+        print(lex_token)
+        if lex_token.type not in ['tag_start','tag_end']:
+            return f'<{lex_token.type}> {translate[lex_token.value] if lex_token.value in translate else lex_token.value} </{lex_token.type}>'
+        else:
+            return f"<{'/' if lex_token.type == 'tag_end' else ''}{lex_token.value}>"
 
     '''
         makes the assumption that, if both parameters are passed, both are compared, otherwise, only individual parameter is compared
@@ -103,15 +107,19 @@ class CompilationEngine():
     def compile_class(self):
         print('entered compile_class_statement compilation')
         class_dec =  [
+            LexicToken(type='tag_start',value='class'),
             self.compare_token(self.advance(),[LexicToken(type='keyword',value='class')]),
             self.compare_token(self.advance(),[LexicToken(type='identifier')]),
             self.compare_token(self.advance(),[LexicToken(type='symbol',value='{')]),
+            LexicToken(type='tag_start',value='classVarDec'),
             self.compile_class_var_dec(),
+            LexicToken(type='tag_end',value='classVarDec'),
+            LexicToken(type='tag_start',value='subroutineDec'),
             self.compile_subroutine_dec(),
+            LexicToken(type='tag_end',value='subroutineDec'),
             self.compare_token(self.advance(),[LexicToken(type='symbol',value='}')]),
+            LexicToken(type='tag_end',value='class')
         ]
-
-        #print(self.compile_subroutine_dec())
 
         return class_dec
 
@@ -169,7 +177,6 @@ class CompilationEngine():
         ):
             subroutine_dec += [
                 self.compare_token(
-                    #self.advance(),
                     current_token,
                     [
                         LexicToken(type='keyword',value='constructor'),
@@ -183,7 +190,9 @@ class CompilationEngine():
             ]
             subroutine_dec += self.compile_parameter_list()
             subroutine_dec.append(self.compare_token(self.advance(),[LexicToken(type='symbol',value=')')]))
+            subroutine_dec.append(LexicToken(type='tag_start',value='subroutineBody'))
             subroutine_dec += self.compile_subroutine_body()
+            subroutine_dec.append(LexicToken(type='tag_end',value='subroutineBody'))
         else:
             self.current_token_index -= 1
 
@@ -210,10 +219,9 @@ class CompilationEngine():
         parameter_list = []
 
         current_token = self.advance()
-        #self.current_token_index -= 1
         if all(
             [
-                current_token.type in ['identifier'],
+                current_token.type in ['keyword'],
                 current_token.value in ['int','char','boolean']
             ]
         ):
@@ -221,7 +229,6 @@ class CompilationEngine():
             parameter_list += [
                 self.compare_token(
                     current_token,
-                    #self.advance(),
                     [
                         LexicToken(value='int'),
                         LexicToken(value='char'),
@@ -263,10 +270,14 @@ class CompilationEngine():
 
         # tests if variable declaration is needed
         if current_token.value == 'var':
+            #subroutine_body.append(LexicToken(type='tag_start',value='varDec'))
             subroutine_body += self.compile_var_dec()
+            #subroutine_body.append(LexicToken(type='tag_end',value='varDec'))
         
+        subroutine_body.append(LexicToken(type='tag_start',value='statements'))
         subroutine_body += self.compile_statements()
-        print(subroutine_body)
+        subroutine_body.append(LexicToken(type='tag_end',value='statements'))
+        
         return subroutine_body
 
     '''
@@ -274,7 +285,7 @@ class CompilationEngine():
     '''
     def compile_var_dec(self):
         print('entered compile_var_dec')
-        var_dec = []
+        var_dec = [LexicToken(type='tag_start',value='varDec')]
         var_dec += [
             self.compare_token(self.advance(),[LexicToken(type='keyword',value='var')]),
             self.compile_type()
@@ -283,13 +294,13 @@ class CompilationEngine():
         # starts recursive list of variable names for rule: (',' varName)*
         var_dec += self.compile_var_dec_list()
         var_dec.append(self.compare_token(self.advance(),[LexicToken(type='symbol',value=';')]))
-
+        var_dec.append(LexicToken(type='tag_end',value='varDec'))
         current_token = self.advance()
         # returns to var token, so recursion can deal with it
         self.current_token_index -= 1
-        if current_token.value == 'var':
-            var_dec += self.compile_var_dec()
-        
+        if current_token.value == 'var':            
+            var_dec += self.compile_var_dec()            
+
         return var_dec
 
     '''
@@ -321,16 +332,27 @@ class CompilationEngine():
         current_token = self.advance()
         if current_token.value in ['let','if','while','do','return']:
             print(f'statement_token: {self.current_token}')
+            self.current_token_index -= 1
             if self.current_token.value == 'let':
+                statements.append(LexicToken(type='tag_start',value='letStatement'))
                 statements += self.compile_let()
+                statements.append(LexicToken(type='tag_end',value='letStatement'))
             if self.current_token.value == 'if':
+                statements.append(LexicToken(type='tag_start',value='ifStatement'))
                 statements += self.compile_if()
+                statements.append(LexicToken(type='tag_end',value='ifStatement'))
             if self.current_token.value == 'while':
+                statements.append(LexicToken(type='tag_start',value='whileStatement'))
                 statements += self.compile_while()
+                statements.append(LexicToken(type='tag_end',value='whileStatement'))
             if self.current_token.value == 'do':
+                statements.append(LexicToken(type='tag_start',value='doStatement'))
                 statements += self.compile_do()
+                statements.append(LexicToken(type='tag_end',value='doStatement'))
             if self.current_token.value == 'return':
+                statements.append(LexicToken(type='tag_start',value='returnStatement'))
                 statements += self.compile_return()
+                statements.append(LexicToken(type='tag_end',value='returnStatement'))
             
             current_token = self.advance()
             self.current_token_index -= 1
@@ -348,18 +370,21 @@ class CompilationEngine():
     def compile_let(self):
         print('entered compile_let')
         let_statement = [
-            self.compare_token(self.current_token,[LexicToken(type='keyword',value='let')]),
+            self.compare_token(self.advance(),[LexicToken(type='keyword',value='let')]),
             self.compare_token(self.advance(),[LexicToken(type='identifier')]),
         ]
 
         current_token = self.advance()
+        
         # checks if expression evaluation is needed
         if current_token.value == '[':
+            let_statement.append(self.compare_token(current_token,[LexicToken(type='symbol',value='[')]))
             let_statement += self.compile_expression()
             let_statement.append(self.compare_token(self.advance(),[LexicToken(type='symbol',value=']')]))
         else:
-            let_statement.append(self.compare_token(current_token,[LexicToken(type='symbol',value='=')]))
-            let_statement += self.compile_expression()
+            self.current_token_index -= 1
+        let_statement.append(self.compare_token(self.advance(),[LexicToken(type='symbol',value='=')]))
+        let_statement += self.compile_expression()
 
         let_statement.append(self.compare_token(self.advance(),[LexicToken(type='symbol',value=';')]))
 
@@ -372,7 +397,7 @@ class CompilationEngine():
     def compile_if(self):
         print('entered if statement')
         if_statement = [
-            self.compare_token(self.current_token,[LexicToken(type='keyword',value='if')]),
+            self.compare_token(self.advance(),[LexicToken(type='keyword',value='if')]),
             self.compare_token(self.advance(),[LexicToken(type='symbol',value='(')]),
         ]
 
@@ -409,7 +434,7 @@ class CompilationEngine():
         while_statement = []
 
         while_statement = [
-            self.compare_token(self.current_token,[LexicToken(type='keyword',value='while')]),
+            self.compare_token(self.advance(),[LexicToken(type='keyword',value='while')]),
             self.compare_token(self.advance(),[LexicToken(type='symbol',value='(')]),
         ]
 
@@ -430,6 +455,7 @@ class CompilationEngine():
     def compile_do(self):
         print('entered do statement')
         return [
+            self.compare_token(self.advance(),[LexicToken(type='keyword',value='do')]),
             self.compile_subroutine_call(),
             self.compare_token(self.advance(),[LexicToken(type='symbol',value=';')])
         ]
@@ -441,11 +467,11 @@ class CompilationEngine():
         print('entered return statement')
         return_statement = []
 
-        return_statement.append(self.compare_token(self.current_token,[LexicToken(type='keyword',value='return')]))
+        return_statement.append(self.compare_token(self.advance(),[LexicToken(type='keyword',value='return')]))
         
         current_token = self.advance()
         # no expression is passed
-        print(current_token)
+        #print(current_token)
         if current_token.value == ';':
             return_statement.append(current_token)
         else:
@@ -460,9 +486,13 @@ class CompilationEngine():
     '''
     def compile_expression(self):
         print('entered expression compilation')
-        expression = ['<expression>']
+        expression = [
+            LexicToken(type='tag_start',value='expression')
+        ]
         # compile term
+        expression.append(LexicToken(type='tag_start',value='term'))
         expression += self.compile_term()
+        expression.append(LexicToken(type='tag_end',value='term'))
 
         # compiles possible (op term)
         current_token = self.advance()
@@ -478,11 +508,15 @@ class CompilationEngine():
             '=',
         ]:
             expression.append(current_token)
+            expression.append(LexicToken(type='tag_start',value='term'))
             expression.append(self.compile_term())
+            expression.append(LexicToken(type='tag_end',value='term'))
         else:
             self.current_token_index -= 1
 
-        expression += ['</expression>']
+        expression += [
+            LexicToken(type='tag_end',value='expression')
+        ]
         print(f'exited expression {expression}')
         return expression
 
@@ -495,7 +529,8 @@ class CompilationEngine():
     def compile_term(self):
         print('entered compile_term')
         term = []
-
+        print(f'term {term}')
+        
         term += [
             self.compare_token(
                 self.advance(),
@@ -529,11 +564,13 @@ class CompilationEngine():
                 if current_token.value == '(':
                     # gets subroutineName | (className | subroutineName) rule
                     self.current_token_index -= 1
-                    self.compile_subroutine_call()
+                    del term[-1]
+                    term += self.compile_subroutine_call()
                 if current_token.value == '.':
                     # gets subroutineName | (className | subroutineName) rule
                     self.current_token_index -= 2
-                    self.compile_subroutine_call()
+                    del term[-1]
+                    term += self.compile_subroutine_call()
             else:
                 # sets back index, since its only varName and doesn't need to be expanded
                 self.current_token_index -= 1
@@ -572,9 +609,11 @@ class CompilationEngine():
                 self.compare_token(self.advance(),[LexicToken(value='(')]),
             ]
 
+        subroutine_call.append(LexicToken(type='tag_start',value='expressionList'))
         subroutine_call += self.compile_expression_list()
+        subroutine_call.append(LexicToken(type='tag_end',value='expressionList'))
         subroutine_call.append(self.compare_token(self.advance(),[LexicToken(type='symbol',value=')')]))
-
+        print(subroutine_call)
         return subroutine_call
 
     '''
@@ -618,6 +657,14 @@ class CompilationEngine():
                     LexicToken(type='identifier'),
                 ]
             )
+    
+    def flatten_list(self,items):
+        for x in items:
+            if isinstance(x, Iterable) and not isinstance(x, (str, bytes)):
+                for sub_x in self.flatten_list(x):
+                    yield sub_x
+            else:
+                yield x
 
 def main():
     arguments_list = [
@@ -639,7 +686,7 @@ def main():
     # Parses ".jack" files into XML format
     parsed_tokens.parse_files()
 
-    print(f'{os.path.join(os.getcwd(),args.file_path)}/MainTokens.xml')
+    #print(f'{os.path.join(os.getcwd(),args.file_path)}/MainTokens.xml')
 
     if os.path.isfile(f'{os.path.join(os.getcwd(),args.file_path)}'):
         split_path = os.path.split(args.file_path)
@@ -652,264 +699,18 @@ def main():
 
     ce = CompilationEngine(tree)
     
-    for token in ce.tokens:
-        print(token)
-
-    class_statments = ce.compile_class_statement()
+    class_statments = ce.compile_class()
 
     print(class_statments)
 
-    flattened_statements = list(ce.flatten_statements(class_statments))
+    flattened_statements = [ce.return_xml_tag(syntax_token) for syntax_token in ce.flatten_list(class_statments)]
     xml_tree = ET.fromstring(''.join(flattened_statements))
 
     with open(f"{os.path.join(os.getcwd(),file_path)}/{file_name.split('.')[0]}Syntax.xml",'w') as fp:
         fp.write('\n'.join(flattened_statements)+'\n')
 
 
-def main():
-    """
-    # test for parameter list
-    ce = CompilationEngine(
-        ET.fromstring(
-            '''
-                <tokens>
-                    <keyword> int </keyword>
-                    <identifier> length </identifier>
-                    <symbol> , </symbol>
-                    <keyword> int </keyword>
-                    <identifier> width </identifier>
-                </tokens>
-            '''
-        )
-    )
-    print(ce.compile_parameter_list())
-
-    # Test for var list
-    ce = CompilationEngine(
-        ET.fromstring(
-            '''
-                <tokens>
-                    <keyword> var </keyword>
-                    <keyword> int </keyword>
-                    <identifier> width </identifier>
-                    <symbol> , </symbol>
-                    <identifier> width2 </identifier>
-                    <symbol> ; </symbol>
-                    <keyword> var </keyword>
-                    <keyword> char </keyword>
-                    <identifier> test </identifier>
-                    <symbol> , </symbol>
-                    <identifier> test2 </identifier>
-                    <symbol> ; </symbol>
-                </tokens>
-            '''
-        )
-    )
-    print(ce.compile_var_dec())
-
-    # Test for subroutine declaration
-    ce = CompilationEngine(
-        ET.fromstring(
-            '''
-                <tokens>
-                    <keyword> constructor </keyword>
-                    <keyword> void </keyword>
-                    <identifier> teste </identifier>
-                    <symbol> ( </symbol>
-                    <keyword> char </keyword>
-                    <identifier> width2 </identifier>
-                    <symbol> ) </symbol>
-                    <symbol> { </symbol>
-                    <keyword> var </keyword>
-                    <keyword> char </keyword>
-                    <identifier> test </identifier>
-                    <symbol> , </symbol>
-                    <identifier> test2 </identifier>
-                    <symbol> ; </symbol>
-                    <keyword> var </keyword>
-                    <keyword> int </keyword>
-                    <identifier> test3 </identifier>
-                    <symbol> ; </symbol>
-                    <keyword> let </keyword>
-                    <identifier> test4 </identifier>
-                    <symbol> = </symbol>
-                    <symbol> } </symbol>
-                </tokens>
-            '''
-        )
-    )
-    print(ce.compile_subroutine_dec())
-
-    # Test for subroutine declaration
-    ce = CompilationEngine(
-        ET.fromstring(
-            '''
-                <tokens>
-                    <identifier> teste </identifier>
-                    <symbol> [ </symbol>
-                    <integerConstant> 4 </integerConstant>
-                    <symbol> ] </symbol>
-                </tokens>
-            '''
-        )
-    )
-    print(ce.compile_term())
-
-    # Test for subroutine declaration
-    ce = CompilationEngine(
-        ET.fromstring(
-            '''
-                <tokens>
-                    <identifier> teste </identifier>
-                    <symbol> ( </symbol>
-                    <integerConstant> 4 </integerConstant>
-                    <symbol> + </symbol>
-                    <identifier> teste </identifier>
-                    <symbol> [ </symbol>
-                    <integerConstant> 4 </integerConstant>
-                    <symbol> ] </symbol>
-                    <symbol> , </symbol>
-                    <integerConstant> 4 </integerConstant>
-                    <symbol> ) </symbol>
-                </tokens>
-            '''
-        )
-    )
-    print(ce.compile_subroutine_call())
-    
-    # Test for subroutine declaration with dot '.' notation
-    ce = CompilationEngine(
-        ET.fromstring(
-            '''
-                <tokens>
-                    <identifier> teste </identifier>
-                    <symbol> . </symbol>
-                    <identifier> getx </identifier>
-                    <symbol> ( </symbol>
-                    <identifier> teste </identifier>
-                    <symbol> [ </symbol>
-                    <integerConstant> 4 </integerConstant>
-                    <symbol> ] </symbol>
-                    <symbol> , </symbol>
-                    <integerConstant> 4 </integerConstant>                    
-                    <symbol> ) </symbol>
-                </tokens>
-            '''
-        )
-    )
-    print(ce.compile_subroutine_call())
-
-    # Test for subroutine declaration with dot '.' notation and no parameters
-    ce = CompilationEngine(
-        ET.fromstring(
-            '''
-                <tokens>
-                    <identifier> teste </identifier>
-                    <symbol> . </symbol>
-                    <identifier> getx </identifier>
-                    <symbol> ( </symbol>                    
-                    <symbol> ) </symbol>
-                </tokens>
-            '''
-        )
-    )
-    print(ce.compile_subroutine_call())
-
-    # Test for expression list
-    ce = CompilationEngine(
-        ET.fromstring(
-            '''
-                <tokens>
-                    <symbol> ( </symbol>
-                    <symbol> ( </symbol>
-                    <identifier> teste </identifier>
-                    <symbol> + </symbol>
-                    <identifier> teste </identifier>
-                    <symbol> ) </symbol>
-                    <symbol> + </symbol>
-                    <integerConstant> 5 </integerConstant>
-                    <symbol> ) </symbol>
-                    <symbol> , </symbol>
-                    <symbol> ( </symbol>
-                    <integerConstant> 5 </integerConstant>
-                    <symbol> / </symbol>
-                    <integerConstant> 3 </integerConstant>
-                    <symbol> ) </symbol>
-                    <symbol> , </symbol>
-                    <identifier> teste </identifier>
-                </tokens>
-            '''
-        )
-    )
-    print(f'Result: {ce.compile_expression_list()}')
-    
-    # Test for empty expression list
-    ce = CompilationEngine(
-        ET.fromstring(
-            '''
-                <tokens>                    
-                </tokens>
-            '''
-        )
-    )
-    print(f'Result: {ce.compile_expression_list()}')
-
-    # Test for do statement
-    ce = CompilationEngine(
-        ET.fromstring(
-            '''
-                <tokens>
-                    <keyword> do </keyword>
-                    <identifier> subroutine_call </identifier>
-                    <symbol> ( </symbol>
-                    <identifier> teste </identifier>
-                    <symbol> + </symbol>
-                    <identifier> teste </identifier>
-                    <symbol> ) </symbol>
-                    <symbol> ) </symbol>
-                </tokens>
-            '''
-        )
-    )
-    print(f'Result: {ce.compile_do()}')
-
-    # Test for do statement
-    ce = CompilationEngine(
-        ET.fromstring(
-            '''
-                <tokens>
-                    <keyword> do </keyword>
-                    <identifier> class_name </identifier>
-                    <symbol> . </symbol>
-                    <identifier> subroutine_name </identifier>
-                    <symbol> ( </symbol>
-                    <identifier> teste </identifier>
-                    <symbol> + </symbol>
-                    <identifier> teste </identifier>
-                    <symbol> ) </symbol>
-                    <symbol> ) </symbol>
-                </tokens>
-            '''
-        )
-    )
-    print(f'Result: {ce.compile_do()}')
-    """
-
-    # Test for class statement with no declarations
-    ce = CompilationEngine(
-        ET.fromstring(
-            '''
-                <tokens>
-                    <keyword> class </keyword>
-                    <identifier> Main </identifier>
-                    <symbol> { </symbol>
-                    <symbol> } </symbol>
-                </tokens>
-            '''
-        )
-    )
-    print(f'Result: {ce.compile_class()}')
-
+def main2():
     # Test for class statement with var declarations
     ce = CompilationEngine(
         ET.fromstring(
@@ -983,8 +784,11 @@ def main():
                     <symbol> { </symbol>
                     <keyword> let </keyword>
                     <identifier> a </identifier>
+                    <symbol> [ </symbol>
+                    <identifier> i </identifier>
+                    <symbol> ] </symbol>
                     <symbol> = </symbol>
-                    <integerConstant> 5 </integerConstant>
+                    <integerConstant> 1 </integerConstant>
                     <symbol> ; </symbol>
                     <keyword> return </keyword>
                     <stringConstant> true </stringConstant>
@@ -995,7 +799,38 @@ def main():
             '''
         )
     )
-    print(f'Result: {ce.compile_class()}')
+
+    class_definition = ce.compile_class()
+
+    # Test for class statement with var declarations
+    ce = CompilationEngine(
+        ET.fromstring(
+            '''
+                <tokens>                    
+                    <keyword> let </keyword>
+                    <identifier> a </identifier>
+                    <symbol> [ </symbol>
+                    <identifier> i </identifier>
+                    <symbol> ] </symbol>
+                    <symbol> = </symbol>
+                    <identifier> Keybaord </identifier>
+                    <symbol> . </symbol>
+                    <identifier> readInt </identifier>
+                    <symbol> ( </symbol>
+                    <stringConstant> "HOW MANY NUMBERS? " </stringConstant>
+                    <symbol> ) </symbol>
+                    <symbol> ; </symbol>                    
+                </tokens>
+            '''
+        )
+    )
+
+    class_definition = ce.compile_let()
+    print(f'Result: {class_definition}')
+
+    print('teste')
+    xml_tags = [ce.return_xml_tag(syntax_token) for syntax_token in ce.flatten_list(class_definition)]
+    print(''.join(xml_tags))
 
 if __name__ == "__main__":
     main()
