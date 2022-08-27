@@ -111,12 +111,12 @@ class CompilationEngine():
             self.compare_token(self.advance(),[LexicToken(type='keyword',value='class')]),
             self.compare_token(self.advance(),[LexicToken(type='identifier')]),
             self.compare_token(self.advance(),[LexicToken(type='symbol',value='{')]),
-            LexicToken(type='tag_start',value='classVarDec'),
+            #LexicToken(type='tag_start',value='classVarDec'),
             self.compile_class_var_dec(),
-            LexicToken(type='tag_end',value='classVarDec'),
-            LexicToken(type='tag_start',value='subroutineDec'),
+            #LexicToken(type='tag_end',value='classVarDec'),
+            #LexicToken(type='tag_start',value='subroutineDec'),
             self.compile_subroutine_dec(),
-            LexicToken(type='tag_end',value='subroutineDec'),
+            #LexicToken(type='tag_end',value='subroutineDec'),
             self.compare_token(self.advance(),[LexicToken(type='symbol',value='}')]),
             LexicToken(type='tag_end',value='class')
         ]
@@ -128,7 +128,7 @@ class CompilationEngine():
     '''
     def compile_class_var_dec(self):
         print('entered compile_var_class_dec compilation')
-        var_class_dec = []
+        var_class_dec = [LexicToken(type='tag_start',value='classVarDec')]
         
         current_token = self.advance()
         if current_token.value in ['static','field']:
@@ -144,8 +144,11 @@ class CompilationEngine():
                 ),                
             ]
 
+            #var_class_dec.append(LexicToken(type='tag_start',value='classVarDec'))
             var_class_dec += self.compile_var_dec_list()
+            #
             var_class_dec.append(self.compare_token(self.advance(),[LexicToken(type='symbol',value=';')]))
+            var_class_dec.append(LexicToken(type='tag_end',value='classVarDec'))
         else:
             self.current_token_index -= 1
             return var_class_dec
@@ -166,9 +169,9 @@ class CompilationEngine():
     '''
     def compile_subroutine_dec(self):
         print('entered compile_subroutine_dec')
-        subroutine_dec = []
+        subroutine_dec = [LexicToken(type='tag_start',value='subroutineDec')]
 
-        current_token = self.advance()        
+        current_token = self.advance()
         if all(
             [
                 current_token.type in ['keyword'],
@@ -188,11 +191,28 @@ class CompilationEngine():
                 self.compare_token(self.advance(),[LexicToken(type='identifier')]),
                 self.compare_token(self.advance(),[LexicToken(type='symbol',value='(')]),
             ]
+            subroutine_dec.append(LexicToken(type='tag_start',value='parameterList'))
             subroutine_dec += self.compile_parameter_list()
+            subroutine_dec.append(LexicToken(type='tag_end',value='parameterList'))
             subroutine_dec.append(self.compare_token(self.advance(),[LexicToken(type='symbol',value=')')]))
             subroutine_dec.append(LexicToken(type='tag_start',value='subroutineBody'))
             subroutine_dec += self.compile_subroutine_body()
             subroutine_dec.append(LexicToken(type='tag_end',value='subroutineBody'))
+
+            # checks for further subroutines declaratioon
+            current_token = self.advance()
+            print(current_token)
+            if all(
+                [
+                    current_token.type in ['keyword'],
+                    current_token.value in ['constructor','function','method']
+                ]
+            ):
+                subroutine_dec.append(LexicToken(type='tag_end',value='subroutineDec'))
+                self.current_token_index -= 1
+                subroutine_dec += self.compile_subroutine_dec()
+            else:
+                self.current_token_index -= 1
         else:
             self.current_token_index -= 1
 
@@ -242,7 +262,7 @@ class CompilationEngine():
             # advances next token, to check if recursion is needed for another parameter
             current_token = self.advance()
             if current_token.value == ',':
-                parameter_list.append(self.return_xml_tag(current_token))
+                parameter_list.append(current_token)
                 parameter_list += self.compile_parameter_list()
             else:
                 # returns to previous token and exits function
@@ -278,6 +298,8 @@ class CompilationEngine():
         subroutine_body += self.compile_statements()
         subroutine_body.append(LexicToken(type='tag_end',value='statements'))
         
+        subroutine_body.append(self.compare_token(self.advance(),[LexicToken(type='symbol',value='}')]))
+
         return subroutine_body
 
     '''
@@ -406,8 +428,10 @@ class CompilationEngine():
             self.compare_token(self.advance(),[LexicToken(type='symbol',value=')')]),
             self.compare_token(self.advance(),[LexicToken(type='symbol',value='{')]),
         ]
+        if_statement.append(LexicToken(type='tag_start',value='statements'))
 
         if_statement += self.compile_statements()
+        if_statement.append(LexicToken(type='tag_end',value='statements'))
         if_statement.append(self.compare_token(self.advance(),[LexicToken(type='symbol',value='}')]))
 
         current_token = self.advance()
@@ -444,7 +468,9 @@ class CompilationEngine():
             self.compare_token(self.advance(),[LexicToken(type='symbol',value='{')]),
         ]
 
+        while_statement.append(LexicToken(type='tag_start',value='statements'))
         while_statement += self.compile_statements()
+        while_statement.append(LexicToken(type='tag_end',value='statements'))
         while_statement.append(self.compare_token(self.advance(),[LexicToken(type='symbol',value='}')]))
 
         return while_statement
@@ -528,9 +554,7 @@ class CompilationEngine():
     # no null term possible
     def compile_term(self):
         print('entered compile_term')
-        term = []
-        print(f'term {term}')
-        
+        term = []        
         term += [
             self.compare_token(
                 self.advance(),
@@ -576,14 +600,15 @@ class CompilationEngine():
                 self.current_token_index -= 1
         # checks for unaryOp term rule
         if self.current_token.value in ['-','~']:
-            term.append(self.current_token)
+            #term.append(self.current_token)
             term += self.compile_term()
         # checks for '(' expression ')'
         if self.current_token.value in ['(']:
-            term.append(self.current_token)
+            #term.append(self.current_token)
             term += self.compile_expression()
             term.append(self.compare_token(self.advance(),[LexicToken(type='symbol',value=')')]))
 
+        print(f'term is {term}')
         return term
 
     '''
@@ -693,22 +718,25 @@ def main():
         file_path, file_name = split_path[0], split_path[1]
         print(f"{os.path.join(file_path,file_name.split('.')[0])}Tokens.xml")
         tree = ET.parse(f"{os.path.join(file_path,file_name.split('.')[0])}Tokens.xml")
+        ce = CompilationEngine(tree)
+        class_statments = ce.compile_class()
+        print(class_statments)
+        flattened_statements = [ce.return_xml_tag(syntax_token) for syntax_token in ce.flatten_list(class_statments)]
+        with open(f"{os.path.join(os.getcwd(),file_path)}/{file_name.split('.')[0]}Syntax.xml",'w') as fp:
+            fp.write('\n'.join(flattened_statements)+'\n')
     else:
         file_path = args.file_path
-        tree = ET.parse(f'{os.path.join(os.getcwd(),file_path)}/MainTokens.xml')
-
-    ce = CompilationEngine(tree)
-    
-    class_statments = ce.compile_class()
-
-    print(class_statments)
-
-    flattened_statements = [ce.return_xml_tag(syntax_token) for syntax_token in ce.flatten_list(class_statments)]
-    xml_tree = ET.fromstring(''.join(flattened_statements))
-
-    with open(f"{os.path.join(os.getcwd(),file_path)}/{file_name.split('.')[0]}Syntax.xml",'w') as fp:
-        fp.write('\n'.join(flattened_statements)+'\n')
-
+        for file in os.listdir(file_path):            
+            if file.endswith("Tokens.xml"):
+                print(file)
+                file_name = file.split('.')[0]
+                #with open(f"{os.path.join(file_path,file)}",'r') as input_fp:
+                tree = ET.parse(f"{os.path.join(file_path,file)}")
+                ce = CompilationEngine(tree)    
+                class_statments = ce.compile_class()
+                flattened_statements = [ce.return_xml_tag(syntax_token) for syntax_token in ce.flatten_list(class_statments)]
+                with open(f"{os.path.join(os.getcwd(),file_path)}/{file_name.split('.')[0]}Syntax.xml",'w') as fp:
+                    fp.write('\n'.join(flattened_statements)+'\n')
 
 def main2():
     # Test for class statement with var declarations
