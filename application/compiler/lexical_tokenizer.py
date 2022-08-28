@@ -2,7 +2,7 @@ from dataclasses import dataclass
 import re
 
 @dataclass
-class SyntaxToken():
+class LexicToken():
     type:   str
     value:  str
     start:  int
@@ -13,7 +13,7 @@ class MismatchedValueError(Exception):
     data: str
 
 @dataclass
-class SyntaxTokenizer():
+class LexicalTokenizer():
     code: str
 
     def tokenize(self):
@@ -32,8 +32,7 @@ class SyntaxTokenizer():
         tok_regex = '|'.join(f'(?P<{group_name}>{match})' for group_name,match in token_specification)
         for regex_match in re.finditer(tok_regex, self.code):
             result = [(k,v) for k,v in regex_match.groupdict().items() if v is not None][0]  
-            #print(result,regex_match.start(0),regex_match.end(0),regex_match.pos,regex_match.span(0))
-            yield SyntaxToken(result[0],result[1].replace('"', ''),regex_match.start(0),regex_match.end(0))
+            yield LexicToken(result[0],result[1].replace('"', ''),regex_match.start(0),regex_match.end(0))
 
 
 def main():
@@ -43,7 +42,7 @@ def main():
     }
     '''
 
-    lex_tokenizer = SyntaxTokenizer(statements)
+    lex_tokenizer = LexicalTokenizer(statements)
 
     tokens = []
 
@@ -52,9 +51,6 @@ def main():
             raise MismatchedValueError('Erro de token, verificar o código')
         if token.type != 'SKIP':
             tokens.append(token)
-        #print(token)
-
-    print(tokens)
 
 if __name__ == '__main__':
     main()

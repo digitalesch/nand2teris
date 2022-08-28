@@ -1,7 +1,7 @@
 from dataclasses import dataclass
 
 from yaml import parse
-from syntax_tokenizer import SyntaxTokenizer, MismatchedValueError
+from lexical_tokenizer import LexicalTokenizer, MismatchedValueError
 import xml.etree.ElementTree as ET
 import argparse, os, sys
 
@@ -22,7 +22,7 @@ class Parser():
     def parse_tokens(self,code):
         xml = ET.Element('tokens')
 
-        lex_tokenizer = SyntaxTokenizer(code)
+        lex_tokenizer = LexicalTokenizer(code)
 
         for token in lex_tokenizer.tokenize():
             if token.type == 'mismatch':
@@ -67,10 +67,8 @@ class Parser():
         if os.path.isfile(self.file_path):
             base_path = os.path.split(self.file_path)
             file_name = base_path[1].split('.')[0]
-            print(file_name,self.file_path, base_path)
             with open(f'{self.file_path}','r') as input_fp:
                 code_lines = ''.join(input_fp.readlines())
-            print(''.join(code_lines))
             xml = self.parse_tokens(code_lines)
             self.write_tags(xml=xml,file_name=file_name,base_path=base_path[0])
         else:
@@ -79,7 +77,6 @@ class Parser():
                     file_name = file.split('.')[0]
                     with open(f'{self.file_path}/{file}','r') as input_fp:
                         code_lines = ''.join(input_fp.readlines())
-                    print(''.join(code_lines))
                     xml = self.parse_tokens(code_lines)
                     self.write_tags(xml=xml,file_name=file_name)
 
