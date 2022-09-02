@@ -39,12 +39,25 @@ class SyntaxToken():
 '''
 @dataclass
 class CompilationEngine():
-    xml_tree: ET
-    current_token: SyntaxToken = None
-    current_token_index : int = 0
+    file_path:              str
+    current_token:          SyntaxToken = None
+    current_token_index:    int = 0
 
     def __post_init__(self):
+        # gets tuple of (file folder, file name with extension)
+        self.file_folder, self.file_full_name = os.path.split(self.file_path)
+        # file name without extension
+        self.file_name = self.file_full_name.split('.')[0]
+        # tokenized file name to be searched for compilation
+        self.token_file_name = self.file_name + 'Tokens.xml'
+        # path for tokenized file
+        self.token_file_path = os.path.join(self.file_folder,self.token_file_name)
+        # loads up parsed tokenized entry
+        self.xml_tree = ET.parse(self.token_file_path)
+        # creates tokens
         self.tokens = self.create_tokens()
+        # executes compilation of generated tokenized parsed entry
+        self.execute_compilation()
 
     def create_tokens(self) -> list:
         return [SyntaxToken(tag.tag, tag.text) for tag in self.xml_tree.iter() if tag.tag != 'tokens']
@@ -107,7 +120,9 @@ class CompilationEngine():
         class_dec =  [
             SyntaxToken(type='tag_start',value='class'),
             self.compare_token(self.advance(),[SyntaxToken(type='keyword',value='class')]),
+            SyntaxToken(type='tag_start',value='className'),                                            # added className tag for easier parsing
             self.compare_token(self.advance(),[SyntaxToken(type='identifier')]),
+            SyntaxToken(type='tag_end',value='className'),                                            # added className tag for easier parsing
             self.compare_token(self.advance(),[SyntaxToken(type='symbol',value='{')]),
             self.compile_class_var_dec(),
             self.compile_subroutine_dec(),
@@ -183,7 +198,9 @@ class CompilationEngine():
                     ]
                 ),
                 self.compile_type(),
+                SyntaxToken(type='tag_start',value='subroutineName'),                                            # added subroutineName tag for easier parsing
                 self.compare_token(self.advance(),[SyntaxToken(type='identifier')]),
+                SyntaxToken(type='tag_end',value='subroutineName'),                                            # added subroutineName tag for easier parsing
                 self.compare_token(self.advance(),[SyntaxToken(type='symbol',value='(')]),
             ]
             subroutine_dec.append(SyntaxToken(type='tag_start',value='parameterList'))
@@ -684,6 +701,12 @@ class CompilationEngine():
             else:
                 yield x
 
+    def execute_compilation(self):
+        class_statments = self.compile_class()
+        flattened_statements = [self.return_xml_tag(syntax_token) for syntax_token in self.flatten_list(class_statments)]
+        with open(f"{os.path.join(os.getcwd(),self.file_folder)}/{self.file_name}Syntax.xml",'w') as fp:
+            fp.write('\n'.join(flattened_statements)+'\n')        
+
 def main():
     arguments_list = [
         {'name':'file_path','type':str,'help':'specifies the file / directory to be read'}
@@ -705,51 +728,12 @@ def main():
     parsed_tokens.parse_files()
     
     if os.path.isfile(f'{os.path.join(os.getcwd(),args.file_path)}'):
-        split_path = os.path.split(args.file_path)
-        file_path, file_name = split_path[0], split_path[1]
-        tree = ET.parse(f"{os.path.join(file_path,file_name.split('.')[0])}Tokens.xml")
-        ce = CompilationEngine(tree)
-        class_statments = ce.compile_class()
-        print(class_statments)
-        flattened_statements = [ce.return_xml_tag(syntax_token) for syntax_token in ce.flatten_list(class_statments)]
-        with open(f"{os.path.join(os.getcwd(),file_path)}/{file_name.split('.')[0]}Syntax.xml",'w') as fp:
-            fp.write('\n'.join(flattened_statements)+'\n')
+        ce = CompilationEngine(args.file_path)        
     else:
-        file_path = args.file_path
-        for file in os.listdir(file_path):            
+        for file in os.listdir(args.file_path):            
             if file.endswith(".jack"):
-                file_name = file.split('.')[0]
-                print(file_name)
-                tree = ET.parse(f"{os.path.join(file_path,file_name)+'Tokens.xml'}")
-                ce = CompilationEngine(tree)    
-                class_statments = ce.compile_class()
-                flattened_statements = [ce.return_xml_tag(syntax_token) for syntax_token in ce.flatten_list(class_statments)]
-                with open(f"{os.path.join(os.getcwd(),file_path)}/{file_name.split('.')[0]}Syntax.xml",'w') as fp:
-                    fp.write('\n'.join(flattened_statements)+'\n')
-
-def main2():
-    # Test for class statement with var declarations
-    ce = CompilationEngine(
-        ET.fromstring(
-            '''
-                <tokens>                    
-                    <keyword>let</keyword>
-                    <identifier>ize</identifier>
-                    <symbol>=</symbol>
-                    <identifier>size</identifier>
-                    <symbol>-</symbol>
-                    <integerConstant>2</integerConstant>
-                    <symbol>;</symbol>                    
-                </tokens>
-            '''
-        )
-    )
-
-    class_definition = ce.compile_let()
-    print(f'Result: {class_definition}')
-
-    xml_tags = [ce.return_xml_tag(syntax_token) for syntax_token in ce.flatten_list(class_definition)]    
-    print(''.join(xml_tags))
+                file_name = file.split('.')[0]                
+                ce = CompilationEngine(os.path.join(args.file_path,file))
 
 if __name__ == "__main__":
     main()
