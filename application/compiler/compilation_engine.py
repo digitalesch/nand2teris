@@ -728,12 +728,11 @@ def main():
     parsed_tokens.parse_files()
     
     if os.path.isfile(f'{os.path.join(os.getcwd(),args.file_path)}'):
-        ce = CompilationEngine(args.file_path)        
+        CompilationEngine(args.file_path)        
     else:
         for file in os.listdir(args.file_path):            
             if file.endswith(".jack"):
-                file_name = file.split('.')[0]                
-                ce = CompilationEngine(os.path.join(args.file_path,file))
+                CompilationEngine(os.path.join(args.file_path,file))
 
 if __name__ == "__main__":
     main()
