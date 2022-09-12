@@ -1,6 +1,7 @@
 # built-in
 from dataclasses import dataclass
 import argparse, os
+from threading import local
 import xml.etree.ElementTree as ET
 
 # symbol table custom code
@@ -117,19 +118,32 @@ def main():
             # check for paramter list, to create entry in subroutine symbol table
             parameter_list = subroutine_declaration.find('parameterList')
             tmp_param = []
-            for parameter in parameter_list:
+            for parameter in parameter_list if parameter_list else []:
                 if parameter.tag != 'symbol':
                     tmp_param.append(parameter.text)
             # writes parameters to symbol table
             if len(tmp_param) > 0:
+                # rewrites tmp_param, since its appended as <type> <param_name>, ex: int x
                 for key, value in {tmp_param[i+1]:tmp_param[i] for i in range(int(len(tmp_param)/2))}.items():
                     cw.symbol_tables['subroutine'].define(symbol_name=key, symbol_type=value, symbol_kind='argument')
-                
+            
+            local_variables = subroutine_declaration.find('subroutineBody').find('varDec')
+            tmp_local_var = []
+            for local_var in local_variables if local_variables else []:
+                print(local_var, local_var.text)
+                if local_var.tag != 'symbol':
+                    tmp_local_var.append(local_var.text)
+            # writes parameters to symbol table
+            if len(tmp_local_var) > 0:
+                # rewrites tmp_param, since its appended as <type> <param_name>, ex: int x
+                for key, value in {tmp_local_var[i+2]:tmp_local_var[i+1] for i in range(int(len(tmp_local_var)/3))}.items():
+                    cw.symbol_tables['subroutine'].define(symbol_name=key, symbol_type=value, symbol_kind='local')
+            print(cw.symbol_tables)
+
+            '''
             for item in  subroutine_declaration.iter():
                 print(subroutine_declaration,item)
-
-
-        print(cw.symbol_tables)
+            '''
     else:
         for file in os.listdir(args.file_path):
             if file.endswith(".jack"):

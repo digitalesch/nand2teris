@@ -23,7 +23,7 @@ class SymbolTable():
 
     def __post_init__(self):
         # defines possibilities for symbol_table indexes
-        self.indexes        = {'static':0,'field':0} if self.scope == 'class' else {'argument':0,'variable':0}
+        self.indexes        = {'static':0,'field':0} if self.scope == 'class' else {'argument':0,'local':0}
 
     '''
         starts compilation of subroutine symbol table, by defining the "this" first argument with className type
@@ -31,7 +31,7 @@ class SymbolTable():
     def start_subroutine(self, class_name: str):
         if self.scope == 'subroutine':
             self.symbol_table = {}
-            self.indexes = {'argument':0,'variable':0}
+            self.indexes = {'argument':0,'local':0}
             self.define(symbol_name='this', symbol_type=class_name, symbol_kind='argument')
 
     '''
@@ -65,6 +65,7 @@ def main():
 
     subroutine_symbol_table = SymbolTable('subroutine')
     subroutine_symbol_table.start_subroutine('Point')
+    subroutine_symbol_table.define('aaa2','local','local')
     print(subroutine_symbol_table.symbol_table)
 
 if __name__ == '__main__':

@@ -19,7 +19,7 @@
 <symbol>{</symbol>
 <keyword>var</keyword>
 <keyword>int</keyword>
-<identifier>i</identifier>
+<identifier>j</identifier>
 <symbol>;</symbol>
 <keyword>let</keyword>
 <identifier>i</identifier>
@@ -31,14 +31,8 @@
 <keyword>void</keyword>
 <identifier>main2</identifier>
 <symbol>(</symbol>
-<keyword>int</keyword>
-<identifier>z</identifier>
 <symbol>)</symbol>
 <symbol>{</symbol>
-<keyword>var</keyword>
-<keyword>int</keyword>
-<identifier>i</identifier>
-<symbol>;</symbol>
 <keyword>let</keyword>
 <identifier>i</identifier>
 <symbol>=</symbol>
