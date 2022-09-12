@@ -1,11 +1,15 @@
 <class>
 <keyword> class </keyword>
+<className>
 <identifier> Main </identifier>
+</className>
 <symbol> { </symbol>
 <subroutineDec>
 <keyword> function </keyword>
 <keyword> void </keyword>
+<subroutineName>
 <identifier> main </identifier>
+</subroutineName>
 <symbol> ( </symbol>
 <parameterList>
 </parameterList>

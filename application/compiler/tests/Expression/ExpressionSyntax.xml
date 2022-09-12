@@ -1,67 +1,50 @@
 <class>
-<keyword> class </keyword>
+<keyword>class</keyword>
 <className>
-<identifier> Main </identifier>
+<identifier>Expression</identifier>
 </className>
-<symbol> { </symbol>
+<symbol>{</symbol>
 <classVarDec>
-<keyword> static </keyword>
-<keyword> int </keyword>
-<identifier> x </identifier>
-<symbol> ; </symbol>
+<keyword>field</keyword>
+<keyword>char</keyword>
+<classVarDecList>
+<identifier>c</identifier>
+</classVarDecList>
+<symbol>;</symbol>
 </classVarDec>
 <subroutineDec>
-<keyword> function </keyword>
-<keyword> void </keyword>
+<keyword>function</keyword>
+<keyword>void</keyword>
 <subroutineName>
-<identifier> main </identifier>
+<identifier>main</identifier>
 </subroutineName>
-<symbol> ( </symbol>
+<symbol>(</symbol>
 <parameterList>
 </parameterList>
-<symbol> ) </symbol>
+<symbol>)</symbol>
 <subroutineBody>
-<symbol> { </symbol>
+<symbol>{</symbol>
 <varDec>
-<keyword> var </keyword>
-<keyword> int </keyword>
-<identifier> length </identifier>
-<symbol> ; </symbol>
+<keyword>var</keyword>
+<keyword>int</keyword>
+<identifier>i</identifier>
+<symbol>;</symbol>
 </varDec>
 <statements>
 <letStatement>
-<keyword> let </keyword>
-<identifier> length </identifier>
-<symbol> = </symbol>
+<keyword>let</keyword>
+<identifier>i</identifier>
+<symbol>=</symbol>
 <expression>
 <term>
-<integerConstant> 0 </integerConstant>
+<integerConstant>0</integerConstant>
 </term>
 </expression>
-<symbol> ; </symbol>
+<symbol>;</symbol>
 </letStatement>
-<letStatement>
-<keyword> let </keyword>
-<identifier> length </identifier>
-<symbol> = </symbol>
-<expression>
-<term>
-<identifier> length </identifier>
-</term>
-<symbol> + </symbol>
-<term>
-<integerConstant> 1 </integerConstant>
-</term>
-</expression>
-<symbol> ; </symbol>
-</letStatement>
-<returnStatement>
-<keyword> return </keyword>
-<symbol> ; </symbol>
-</returnStatement>
 </statements>
-<symbol> } </symbol>
+<symbol>}</symbol>
 </subroutineBody>
 </subroutineDec>
-<symbol> } </symbol>
+<symbol>}</symbol>
 </class>

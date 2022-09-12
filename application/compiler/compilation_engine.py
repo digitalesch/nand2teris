@@ -48,6 +48,9 @@ class CompilationEngine():
         self.file_folder, self.file_full_name = os.path.split(self.file_path)
         # file name without extension
         self.file_name = self.file_full_name.split('.')[0]
+        # compiles tokens for path
+        parser = Parser(self.file_path)
+        parser.parse_files()
         # tokenized file name to be searched for compilation
         self.token_file_name = self.file_name + 'Tokens.xml'
         # path for tokenized file
@@ -81,7 +84,7 @@ class CompilationEngine():
             "&": '&amp;'
         }
         if syntax_token.type not in ['tag_start','tag_end']:
-            return f'<{syntax_token.type}> {translate[syntax_token.value] if syntax_token.value in translate else syntax_token.value} </{syntax_token.type}>'
+            return f'<{syntax_token.type}>{translate[syntax_token.value] if syntax_token.value in translate else syntax_token.value}</{syntax_token.type}>'
         else:
             return f"<{'/' if syntax_token.type == 'tag_end' else ''}{syntax_token.value}>"
 
@@ -116,7 +119,7 @@ class CompilationEngine():
         rule: 
     '''
     def compile_class(self):
-        print('entered compile_class_statement compilation')
+        ##print('entered compile_class_statement compilation')
         class_dec =  [
             SyntaxToken(type='tag_start',value='class'),
             self.compare_token(self.advance(),[SyntaxToken(type='keyword',value='class')]),
@@ -136,7 +139,7 @@ class CompilationEngine():
         rule: 
     '''
     def compile_class_var_dec(self):
-        print('entered compile_var_class_dec compilation')
+        #print('entered compile_var_class_dec compilation')
         var_class_dec = []
         
         current_token = self.advance()
@@ -154,8 +157,9 @@ class CompilationEngine():
                     ]
                 ),                
             ]
-
+            var_class_dec += [SyntaxToken(type='tag_start',value='classVarDecList'),]
             var_class_dec += self.compile_var_dec_list()
+            var_class_dec += [SyntaxToken(type='tag_end',value='classVarDecList'),]
             var_class_dec.append(self.compare_token(self.advance(),[SyntaxToken(type='symbol',value=';')]))
             var_class_dec.append(SyntaxToken(type='tag_end',value='classVarDec'))
         else:
@@ -167,8 +171,8 @@ class CompilationEngine():
         if current_token.value in ['static','field']:
             self.current_token_index -= 1
             var_class_dec += self.compile_class_var_dec(),
-        else:            
-            print('var class dec ended')
+        else:
+            #print('var class dec ended')
             self.current_token_index -= 1
 
         return var_class_dec
@@ -177,7 +181,7 @@ class CompilationEngine():
         rule: ('constructor' | 'function' | 'method') ('void' | type) subroutineName '(' parameterList ')' subroutineBody
     '''
     def compile_subroutine_dec(self):
-        print('entered compile_subroutine_dec')
+        #print('entered compile_subroutine_dec')
         subroutine_dec = []
 
         current_token = self.advance()
@@ -213,7 +217,7 @@ class CompilationEngine():
 
             # checks for further subroutines declaratioon
             current_token = self.advance()
-            print(current_token)
+            #print(current_token)
             if all(
                 [
                     current_token.type in ['keyword'],
@@ -248,7 +252,7 @@ class CompilationEngine():
             ]
    '''
     def compile_parameter_list(self):
-        print('entered compile_parameter_list')
+        #print('entered compile_parameter_list')
         parameter_list = []
 
         current_token = self.advance()
@@ -291,8 +295,8 @@ class CompilationEngine():
         rule: '{' varDec* statements '}'
     '''
     def compile_subroutine_body(self):
-        print('entered compile_subroutine_body')
-        print(self.current_token)
+        #print('entered compile_subroutine_body')
+        #print(self.current_token)
         subroutine_body = [
             self.compare_token(self.advance(),[SyntaxToken(type='symbol',value='{')])
         ]
@@ -319,7 +323,7 @@ class CompilationEngine():
         rule: 'var' type varName (',' varName)* ';'
     '''
     def compile_var_dec(self):
-        print('entered compile_var_dec')
+        #print('entered compile_var_dec')
         var_dec = [SyntaxToken(type='tag_start',value='varDec')]
         var_dec += [
             self.compare_token(self.advance(),[SyntaxToken(type='keyword',value='var')]),
@@ -342,11 +346,11 @@ class CompilationEngine():
         rule: varName (',' varName)*
     '''
     def compile_var_dec_list(self):
-        print('entered compile_var_dec_list')
+        #print('entered compile_var_dec_list')
         var_dec_list = [
             self.compare_token(self.advance(),[SyntaxToken(type='identifier')]),
         ]
-        
+
         current_token = self.advance()
         if current_token.value == ',':
             var_dec_list.append(current_token)
@@ -361,12 +365,12 @@ class CompilationEngine():
     '''
     # missing null statement
     def compile_statements(self):
-        print('entered compile_statements')
+        #print('entered compile_statements')
         statements = []
         
         current_token = self.advance()
         if current_token.value in ['let','if','while','do','return']:
-            print(f'statement_token: {self.current_token}')
+            #print(f'statement_token: {self.current_token}')
             self.current_token_index -= 1
             if self.current_token.value == 'let':
                 statements.append(SyntaxToken(type='tag_start',value='letStatement'))
@@ -403,7 +407,7 @@ class CompilationEngine():
         rule: 'let' varName('[' expreession ']')? '=' expression ';'
     '''
     def compile_let(self):
-        print('entered compile_let')
+        #print('entered compile_let')
         let_statement = [
             self.compare_token(self.advance(),[SyntaxToken(type='keyword',value='let')]),
             self.compare_token(self.advance(),[SyntaxToken(type='identifier')]),
@@ -423,14 +427,14 @@ class CompilationEngine():
 
         let_statement.append(self.compare_token(self.advance(),[SyntaxToken(type='symbol',value=';')]))
 
-        print(let_statement)
+        #print(let_statement)
         return let_statement
 
     '''
         rule: 
     '''
     def compile_if(self):
-        print('entered if statement')
+        #print('entered if statement')
         if_statement = [
             self.compare_token(self.advance(),[SyntaxToken(type='keyword',value='if')]),
             self.compare_token(self.advance(),[SyntaxToken(type='symbol',value='(')]),
@@ -448,7 +452,7 @@ class CompilationEngine():
         if_statement.append(self.compare_token(self.advance(),[SyntaxToken(type='symbol',value='}')]))
 
         current_token = self.advance()
-        print(f'if {current_token}')
+        #print(f'if {current_token}')
         # checks if expression evaluation is needed
         if current_token.value == 'else':
             if_statement += [
@@ -467,7 +471,7 @@ class CompilationEngine():
         rule: 
     '''
     def compile_while(self):
-        print('entered while statement')
+        #print('entered while statement')
         while_statement = []
 
         while_statement = [
@@ -492,7 +496,7 @@ class CompilationEngine():
         rule: 
     '''
     def compile_do(self):
-        print('entered do statement')
+        #print('entered do statement')
         return [
             self.compare_token(self.advance(),[SyntaxToken(type='keyword',value='do')]),
             self.compile_subroutine_call(),
@@ -503,7 +507,7 @@ class CompilationEngine():
         rule: 
     '''
     def compile_return(self):
-        print('entered return statement')
+        #print('entered return statement')
         return_statement = []
 
         return_statement.append(self.compare_token(self.advance(),[SyntaxToken(type='keyword',value='return')]))
@@ -523,7 +527,7 @@ class CompilationEngine():
         rule: term (op term)*
     '''
     def compile_expression(self):
-        print('entered expression compilation')
+        #print('entered expression compilation')
         expression = [
             SyntaxToken(type='tag_start',value='expression')
         ]
@@ -531,7 +535,7 @@ class CompilationEngine():
         expression.append(SyntaxToken(type='tag_start',value='term'))
         expression += self.compile_term()
         expression.append(SyntaxToken(type='tag_end',value='term'))
-        print(expression)
+        #print(expression)
 
         # compiles possible (op term)
         current_token = self.advance()
@@ -556,7 +560,7 @@ class CompilationEngine():
         expression += [
             SyntaxToken(type='tag_end',value='expression')
         ]
-        print(f'exited expression {expression}')
+        #print(f'exited expression {expression}')
         return expression
 
     '''
@@ -566,7 +570,7 @@ class CompilationEngine():
     '''
     # no null term possible
     def compile_term(self):
-        print('entered compile_term')
+        #print('entered compile_term')
         term = []        
         term += [
             self.compare_token(
@@ -619,14 +623,14 @@ class CompilationEngine():
             term += self.compile_expression()
             term.append(self.compare_token(self.advance(),[SyntaxToken(type='symbol',value=')')]))
 
-        print(f'term is {term}')
+        #print(f'term is {term}')
         return term
 
     '''
         rule: subroutineName '(' expressionList ')' | (className | varName) '.' subroutineName '(' expressionList ')' 
     '''
     def compile_subroutine_call(self):
-        print('entered compile_subroutine_call')
+        #print('entered compile_subroutine_call')
         subroutine_call = [self.compare_token(self.advance(),[SyntaxToken(type='identifier')])]
 
         # eats next token, to determine if its first or second option of or statement
@@ -656,7 +660,7 @@ class CompilationEngine():
     '''
     # null expression
     def compile_expression_list(self):
-        print('entered compile_expression_list')
+        #print('entered compile_expression_list')
         expression_list = []
         
         current_token = self.advance()
