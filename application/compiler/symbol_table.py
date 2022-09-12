@@ -30,6 +30,8 @@ class SymbolTable():
     '''
     def start_subroutine(self, class_name: str):
         if self.scope == 'subroutine':
+            self.symbol_table = {}
+            self.indexes = {'argument':0,'variable':0}
             self.define(symbol_name='this', symbol_type=class_name, symbol_kind='argument')
 
     '''
