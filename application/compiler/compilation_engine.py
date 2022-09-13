@@ -570,7 +570,7 @@ class CompilationEngine():
     '''
     # no null term possible
     def compile_term(self):
-        #print('entered compile_term')
+        print('entered compile_term')
         term = []        
         term += [
             self.compare_token(
@@ -615,15 +615,14 @@ class CompilationEngine():
             else:
                 # sets back index, since its only varName and doesn't need to be expanded
                 self.current_token_index -= 1
-        # checks for unaryOp term rule, len of term was added to verify if it's the first occurrence
-        if self.current_token.value in ['-','~'] and len(term) == 0:
+        # checks for unaryOp term rule, by checking first list value is unaryOp ("-" | "~")
+        if term[0].value in ['-','~']:
             term += self.compile_term()
         # checks for '(' expression ')'
         if self.current_token.value in ['(']:
             term += self.compile_expression()
             term.append(self.compare_token(self.advance(),[SyntaxToken(type='symbol',value=')')]))
 
-        #print(f'term is {term}')
         return term
 
     '''
