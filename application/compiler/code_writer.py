@@ -140,14 +140,13 @@ def main():
                     cw.symbol_tables['subroutine'].define(symbol_name=key, symbol_type=value, symbol_kind='local')
             print(cw.symbol_tables)
 
-            '''
-            for item in  subroutine_declaration.iter():
-                print(subroutine_declaration,item)
-            '''
+            # finds statements inside subroutine body
+            for item in  subroutine_declaration.find('subroutineBody').find('statements').iter():
+                print(item, item.text)
     else:
         for file in os.listdir(args.file_path):
             if file.endswith(".jack"):
-                CompilationEngine(os.path.join(args.file_path,file))    
+                CompilationEngine(os.path.join(args.file_path,file))
 
 if __name__ == '__main__':
     main()
