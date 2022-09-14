@@ -1,5 +1,14 @@
 class Expression {
     function void main(int a, int b, int c) {
+        let x = 1;
+        let x = a;
         let x = a + (b - c);
+
+        /*
+        while (i < length) {
+			let a[i] = Keyboard.readInt("ENTER THE NEXT NUMBER: ");
+			let i = i + 1;
+		}
+        */
     }
 }
