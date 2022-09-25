@@ -6,7 +6,7 @@ import xml.etree.ElementTree as ET
 
 # symbol table custom code
 from symbol_table import SymbolTable, VariableNotFound
-from compilation_engine import CompilationEngine
+from compilation_engine_without_tags import CompilationEngine
 
 '''
 Will only need to mantain two symbol tables:
@@ -59,8 +59,45 @@ class CodeWriter():
                 write_expression(exp2)
                 output "call f"
     '''
-    def write_expression(self, expression):
-        pass
+    def write_expression(self, expression: ET):
+        t = []
+        # classifies which type of expression is it
+        self.classify_expression(expression)
+
+        for term in expression.find('term'):
+            print(term)
+
+        return t
+        
+    '''
+        classifies which type of term is currently being read.
+        1 - integerConstant
+        2 - identifier
+        3 - expression
+            if expression is a number n:
+                output "push n"
+            if expression is a variable var:
+                output "push var"
+            if expression is "exp1 op exp2"
+                write_expression(exp1)
+                write_expression(exp2)
+                output "op"
+            if expression is "op exp"
+                write_expression(exp)
+                output "op"
+            if expression is "f(exp1, exp2))"
+                write_expression(exp1)
+                write_expression(exp2)
+                output "call f"
+    '''
+    def classify_expression(self, expression: ET):
+        tmp = expression[0]
+        if tmp.text == 'integerConstant':
+            return 1
+        if tmp.text == 'identifier':
+            return 2
+        
+        return 3
 
     '''
         compiles file, to output tokens and syntax
@@ -96,7 +133,7 @@ def main():
         xml_tree = ET.parse(f"{os.path.join(os.getcwd(),file_path,file_name+'Syntax.xml')}")
         # update class variable table, by using "classVarDec" and "classVarDecList" tag
         class_name = [tag.text for tag in xml_tree.find('className')][0]
-        print(class_name)
+        #print(class_name)
         cw = CodeWriter(class_name)
         
         for class_var_declaration in xml_tree.iterfind('classVarDec'):
@@ -115,34 +152,43 @@ def main():
         # checks for subroutines
         for subroutine_declaration in xml_tree.iterfind('subroutineDec'):
             cw.symbol_tables['subroutine'].start_subroutine(cw.class_name)
-            # check for paramter list, to create entry in subroutine symbol table
-            parameter_list = subroutine_declaration.find('parameterList')
+            # check for parameter list, to create entry in subroutine symbol table
             tmp_param = []
-            for parameter in parameter_list if parameter_list else []:
+
+            # creates parameters as a list, since comma separates them, ex: "int a, int b" -> ['int', 'a', 'int', 'b']
+            for parameter in subroutine_declaration.find('parameterList'):
                 if parameter.tag != 'symbol':
                     tmp_param.append(parameter.text)
             # writes parameters to symbol table
-            if len(tmp_param) > 0:
+            if len(tmp_param):
                 # rewrites tmp_param, since its appended as <type> <param_name>, ex: int x
-                for key, value in {tmp_param[i+1]:tmp_param[i] for i in range(int(len(tmp_param)/2))}.items():
+                for key, value in {tmp_param[i*2+1]:tmp_param[i*2] for i in range(int(len(tmp_param)/2))}.items():
+                    # updates the symbol table, since values are of dict type with values {'<variable_name>': '<variable_type'>} -> {'a': 'int', 'b': 'int'}
                     cw.symbol_tables['subroutine'].define(symbol_name=key, symbol_type=value, symbol_kind='argument')
+                        
+            # aggregates all local variables into a list
+            all_local_var = []
+            for variable_declaration in subroutine_declaration.find('subroutineBody').find('subroutineVarDec'):
+                # if local variable, by tab varDec exists, append to all_local_var
+                if variable_declaration:
+                    # temporary list for containing each individual var set, ex: "var int length, teste; var char t;" -> [['var', 'int', 'length', 'teste'], ['var', 'char', 't']]
+                    tmp_local_var = []
+                    for local_variable in variable_declaration:
+                        if local_variable.tag != 'symbol':
+                            tmp_local_var.append(local_variable.text)
+                    all_local_var.append(tmp_local_var)
             
-            local_variables = subroutine_declaration.find('subroutineBody').find('varDec')
-            tmp_local_var = []
-            for local_var in local_variables if local_variables else []:
-                print(local_var, local_var.text)
-                if local_var.tag != 'symbol':
-                    tmp_local_var.append(local_var.text)
-            # writes parameters to symbol table
-            if len(tmp_local_var) > 0:
-                # rewrites tmp_param, since its appended as <type> <param_name>, ex: int x
-                for key, value in {tmp_local_var[i+2]:tmp_local_var[i+1] for i in range(int(len(tmp_local_var)/3))}.items():
-                    cw.symbol_tables['subroutine'].define(symbol_name=key, symbol_type=value, symbol_kind='local')
-            print(cw.symbol_tables)
+            #print(all_local_var)
 
-            # finds statements inside subroutine body
-            for item in  subroutine_declaration.find('subroutineBody').find('statements').iter():
-                print(item, item.text)
+            # writes parameters to subroutine symbol table
+            for local_variable_declaration in all_local_var:
+                print(local_variable_declaration,local_variable_declaration[2::])
+                # two first elements have "var" keyword and type of varialbe, rest of list has variable names
+                for local_variable_name in local_variable_declaration[2::]:
+                    cw.symbol_tables['subroutine'].define(symbol_name=local_variable_name, symbol_type=local_variable_declaration[1], symbol_kind='local')
+                
+            print(cw.symbol_tables)            
+                    
     else:
         for file in os.listdir(args.file_path):
             if file.endswith(".jack"):

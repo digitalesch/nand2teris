@@ -76,7 +76,7 @@ class CompilationEngine():
         else:
             return SyntaxToken(type='quit',value='end')        
     
-    def return_xml_tag(self, syntax_token: SyntaxToken) -> str:
+    def return_xml_tag(self, syntax_token: SyntaxToken, full: bool = True) -> str:
         translate = {
             "<": '&lt;',
             ">": '&gt;',
@@ -86,7 +86,7 @@ class CompilationEngine():
         if syntax_token.type not in ['tag_start','tag_end']:
             return f'<{syntax_token.type}>{translate[syntax_token.value] if syntax_token.value in translate else syntax_token.value}</{syntax_token.type}>'
         else:
-            return f"<{'/' if syntax_token.type == 'tag_end' else ''}{syntax_token.value}>"
+            return f"<{'/' if syntax_token.type == 'tag_end' else ''}{syntax_token.value}>"    
 
     '''
         makes the assumption that, if both parameters are passed, both are compared, otherwise, only individual parameter is compared
@@ -202,9 +202,9 @@ class CompilationEngine():
                     ]
                 ),
                 self.compile_type(),
-                SyntaxToken(type='tag_start',value='subroutineName'),                                            # added subroutineName tag for easier parsing
+                #SyntaxToken(type='tag_start',value='subroutineName'),                                            # added subroutineName tag for easier parsing
                 self.compare_token(self.advance(),[SyntaxToken(type='identifier')]),
-                SyntaxToken(type='tag_end',value='subroutineName'),                                            # added subroutineName tag for easier parsing
+                #SyntaxToken(type='tag_end',value='subroutineName'),                                            # added subroutineName tag for easier parsing
                 self.compare_token(self.advance(),[SyntaxToken(type='symbol',value='(')]),
             ]
             subroutine_dec.append(SyntaxToken(type='tag_start',value='parameterList'))
@@ -306,10 +306,10 @@ class CompilationEngine():
         self.current_token_index -= 1
 
         # tests if variable declaration is needed
+        subroutine_body.append(SyntaxToken(type='tag_start',value='subroutineVarDec'))
         if current_token.value == 'var':
-            #subroutine_body.append(SyntaxToken(type='tag_start',value='varDec'))
             subroutine_body += self.compile_var_dec()
-            #subroutine_body.append(SyntaxToken(type='tag_end',value='varDec'))
+        subroutine_body.append(SyntaxToken(type='tag_end',value='subroutineVarDec'))
         
         subroutine_body.append(SyntaxToken(type='tag_start',value='statements'))
         subroutine_body += self.compile_statements()
@@ -325,6 +325,7 @@ class CompilationEngine():
     def compile_var_dec(self):
         #print('entered compile_var_dec')
         var_dec = [SyntaxToken(type='tag_start',value='varDec')]
+        #var_dec = []
         var_dec += [
             self.compare_token(self.advance(),[SyntaxToken(type='keyword',value='var')]),
             self.compile_type()
@@ -425,9 +426,9 @@ class CompilationEngine():
             self.current_token_index -= 1
         let_statement.append(SyntaxToken(type='tag_end',value='assignVariable'))
         let_statement.append(self.compare_token(self.advance(),[SyntaxToken(type='symbol',value='=')]))
-        let_statement.append(SyntaxToken(type='tag_start',value='evaluateExpression'))
+        #let_statement.append(SyntaxToken(type='tag_start',value='evaluateExpression'))
         let_statement += self.compile_expression()
-        let_statement.append(SyntaxToken(type='tag_end',value='evaluateExpression'))
+        #let_statement.append(SyntaxToken(type='tag_end',value='evaluateExpression'))
         let_statement.append(self.compare_token(self.advance(),[SyntaxToken(type='symbol',value=';')]))
 
         #print(let_statement)
@@ -575,7 +576,7 @@ class CompilationEngine():
     '''
     # no null term possible
     def compile_term(self):
-        print('entered compile_term')
+        #print('entered compile_term')
         term = []        
         term += [
             self.compare_token(
@@ -619,8 +620,8 @@ class CompilationEngine():
         # checks for unaryOp term rule, by checking first list value is unaryOp ("-" | "~")
         if term[0].value in ['-','~']:
             term.append(term[0])
-            term[0] = SyntaxToken(type='tag_start',value='unaryOp')
-            term.append(SyntaxToken(type='tag_end',value='unaryOp'))
+            term[0] = SyntaxToken(type='tag_start',value='operation')
+            term.append(SyntaxToken(type='tag_end',value='operation'))
             term += self.compile_term()
         # checks for '(' expression ')'
         if self.current_token.value in ['(']:
@@ -633,7 +634,7 @@ class CompilationEngine():
         rule: subroutineName '(' expressionList ')' | (className | varName) '.' subroutineName '(' expressionList ')' 
     '''
     def compile_subroutine_call(self):
-        print('entered compile_subroutine_call')
+        #print('entered compile_subroutine_call')
         subroutine_call = [self.compare_token(self.advance(),[SyntaxToken(type='identifier')])]
 
         # eats next token, to determine if its first or second option of or statement
