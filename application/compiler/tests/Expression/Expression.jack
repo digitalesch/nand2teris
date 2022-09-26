@@ -2,15 +2,6 @@ class Expression {
     static int x;
 
     function void func1(int b, int c) {
-        let x = b + c;
-    }
-
-    function void func2(int a) {
-        var int length, teste;
-        var char t;
-        let x = a + 1;
-    }
-
-    function void func3() {        
+        let x = 5 + 1;
     }
 }

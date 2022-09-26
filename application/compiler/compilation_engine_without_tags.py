@@ -202,9 +202,9 @@ class CompilationEngine():
                     ]
                 ),
                 self.compile_type(),
-                #SyntaxToken(type='tag_start',value='subroutineName'),                                            # added subroutineName tag for easier parsing
+                SyntaxToken(type='tag_start',value='subroutineName'),                                            # added subroutineName tag for easier parsing
                 self.compare_token(self.advance(),[SyntaxToken(type='identifier')]),
-                #SyntaxToken(type='tag_end',value='subroutineName'),                                            # added subroutineName tag for easier parsing
+                SyntaxToken(type='tag_end',value='subroutineName'),                                            # added subroutineName tag for easier parsing
                 self.compare_token(self.advance(),[SyntaxToken(type='symbol',value='(')]),
             ]
             subroutine_dec.append(SyntaxToken(type='tag_start',value='parameterList'))
@@ -536,9 +536,9 @@ class CompilationEngine():
             SyntaxToken(type='tag_start',value='expression')
         ]
         # compile term
-        expression.append(SyntaxToken(type='tag_start',value='term'))
+        #expression.append(SyntaxToken(type='tag_start',value='term'))
         expression += self.compile_term()
-        expression.append(SyntaxToken(type='tag_end',value='term'))
+        #expression.append(SyntaxToken(type='tag_end',value='term'))
         #print(expression)
 
         # compiles possible (op term)
@@ -554,12 +554,13 @@ class CompilationEngine():
             '>',
             '=',
         ]:
-            expression.append(SyntaxToken(type='tag_start',value='operation'))
-            expression.append(current_token)
-            expression.append(SyntaxToken(type='tag_end',value='operation'))
-            expression.append(SyntaxToken(type='tag_start',value='term'))
+            #expression.append(SyntaxToken(type='tag_start',value='operation'))
+            #expression.append(current_token)
+            expression.append(SyntaxToken(type='operation',value=current_token.value))  # test for tagging as operation
+            #expression.append(SyntaxToken(type='tag_end',value='operation'))
+            #expression.append(SyntaxToken(type='tag_start',value='term'))
             expression.append(self.compile_term())
-            expression.append(SyntaxToken(type='tag_end',value='term'))
+            #expression.append(SyntaxToken(type='tag_end',value='term'))
         else:
             self.current_token_index -= 1
 
@@ -635,7 +636,10 @@ class CompilationEngine():
     '''
     def compile_subroutine_call(self):
         #print('entered compile_subroutine_call')
-        subroutine_call = [self.compare_token(self.advance(),[SyntaxToken(type='identifier')])]
+        subroutine_call = [
+            SyntaxToken(type='tag_start',value='subroutineCall'),
+            self.compare_token(self.advance(),[SyntaxToken(type='identifier')])
+        ]
 
         # eats next token, to determine if its first or second option of or statement
         current_token = self.advance()
@@ -643,6 +647,7 @@ class CompilationEngine():
         # first rule
         if current_token.value == '(':
             # appends current token only
+            subroutine_call.append(SyntaxToken(type='tag_end',value='subroutineCall'))
             subroutine_call.append(current_token)
         # second rule
         if current_token.value == '.':
@@ -650,12 +655,14 @@ class CompilationEngine():
             subroutine_call += [
                 current_token,
                 self.compare_token(self.advance(),[SyntaxToken(type='identifier')]),
+                SyntaxToken(type='tag_end',value='subroutineCall'),
                 self.compare_token(self.advance(),[SyntaxToken(value='(')]),
             ]
 
-        subroutine_call.append(SyntaxToken(type='tag_start',value='expressionList'))
+
+        #subroutine_call.append(SyntaxToken(type='tag_start',value='expressionList'))
         subroutine_call += self.compile_expression_list()
-        subroutine_call.append(SyntaxToken(type='tag_end',value='expressionList'))
+        #subroutine_call.append(SyntaxToken(type='tag_end',value='expressionList'))
         subroutine_call.append(self.compare_token(self.advance(),[SyntaxToken(type='symbol',value=')')]))
         return subroutine_call
 
@@ -711,6 +718,7 @@ class CompilationEngine():
 
     def execute_compilation(self):
         class_statments = self.compile_class()
+        print(class_statments)
         flattened_statements = [self.return_xml_tag(syntax_token) for syntax_token in self.flatten_list(class_statments)]
         with open(f"{os.path.join(os.getcwd(),self.file_folder)}/{self.file_name}Syntax.xml",'w') as fp:
             fp.write('\n'.join(flattened_statements)+'\n')        

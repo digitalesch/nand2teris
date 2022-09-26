@@ -15,6 +15,11 @@ Will only need to mantain two symbol tables:
 '''
 
 @dataclass
+class VMCommand():
+    type:       str
+    value:      str
+
+@dataclass
 class CodeWriter():
     class_name: str # defines writer for class file passed as parameter
 
@@ -60,44 +65,39 @@ class CodeWriter():
                 output "call f"
     '''
     def write_expression(self, expression: ET):
-        t = []
-        # classifies which type of expression is it
-        self.classify_expression(expression)
-
-        for term in expression.find('term'):
-            print(term)
-
-        return t
+        vm_commands = []
+        
+        for child in expression:
+            if child.tag in ['expression','expressionList']:
+                vm_commands.append(self.write_expression(child))
+            if child.tag in ['integerConstant','identifier']:
+                #vm_commands.append(f"push {child.text}")
+                vm_commands.append(VMCommand('constant',child.text))
+            if child.tag in ['operation']:
+                vm_commands.append(VMCommand('operation',child.text))
+            if child.tag in ['subroutineCall']:
+                vm_commands.append(VMCommand('function',''.join([subroutine_call_name.text for subroutine_call_name in child])))
+        
+        return vm_commands
         
     '''
-        classifies which type of term is currently being read.
-        1 - integerConstant
-        2 - identifier
-        3 - expression
-            if expression is a number n:
-                output "push n"
-            if expression is a variable var:
-                output "push var"
-            if expression is "exp1 op exp2"
-                write_expression(exp1)
-                write_expression(exp2)
-                output "op"
-            if expression is "op exp"
-                write_expression(exp)
-                output "op"
-            if expression is "f(exp1, exp2))"
-                write_expression(exp1)
-                write_expression(exp2)
-                output "call f"
+        post fixes expression commands, since they are appended in order
     '''
-    def classify_expression(self, expression: ET):
-        tmp = expression[0]
-        if tmp.text == 'integerConstant':
-            return 1
-        if tmp.text == 'identifier':
-            return 2
-        
-        return 3
+    def postfix_expression(self, expressions: list):
+        tmp = []
+        for command in expressions:
+            print(command)
+            if isinstance(command,list):
+                tmp += self.postfix_expression(command)
+            else:
+                if len(expressions)==3:
+                    print('xxx')
+                    print(expressions)
+                    expressions.insert(1,expressions[2])
+                    expressions.pop()
+                    print(expressions)
+                    tmp += expressions
+        return tmp
 
     '''
         compiles file, to output tokens and syntax
@@ -155,6 +155,8 @@ def main():
             # check for parameter list, to create entry in subroutine symbol table
             tmp_param = []
 
+            print(f"Running '{subroutine_declaration.find('subroutineName').find('identifier').text}' function!")
+
             # creates parameters as a list, since comma separates them, ex: "int a, int b" -> ['int', 'a', 'int', 'b']
             for parameter in subroutine_declaration.find('parameterList'):
                 if parameter.tag != 'symbol':
@@ -178,16 +180,34 @@ def main():
                             tmp_local_var.append(local_variable.text)
                     all_local_var.append(tmp_local_var)
             
-            #print(all_local_var)
-
             # writes parameters to subroutine symbol table
             for local_variable_declaration in all_local_var:
-                print(local_variable_declaration,local_variable_declaration[2::])
                 # two first elements have "var" keyword and type of varialbe, rest of list has variable names
                 for local_variable_name in local_variable_declaration[2::]:
                     cw.symbol_tables['subroutine'].define(symbol_name=local_variable_name, symbol_type=local_variable_declaration[1], symbol_kind='local')
                 
-            print(cw.symbol_tables)            
+            print(cw.symbol_tables)
+
+            x = []
+            # writes expressions
+            for statments_declaration in subroutine_declaration.find('subroutineBody').find('statements'):            
+                print(statments_declaration)
+                
+                for y in statments_declaration.findall('expression'):
+                    print(y)
+                    x += cw.write_expression(y)
+            print(x)
+            t = []
+            for item in enumerate(x):
+                if item[1].type == 'operation':
+                    tmp = item                    
+                else:
+                    t.append(item)
+            t.append(tmp)
+
+            print(t)
+
+            #print(cw.postfix_expression(x))
                     
     else:
         for file in os.listdir(args.file_path):
