@@ -47,7 +47,7 @@ class CodeWriter():
         self.symbol_tables[scope].define(symbol_name=symbol_name, symbol_type=symbol_type, symbol_kind=symbol_kind)
 
     '''
-        
+        writes expression symbols in order, so it can be postfixed later
     '''
     def write_expression(self, expression: ET):
         vm_commands = []
@@ -74,10 +74,8 @@ class CodeWriter():
     def postfix_expression(self,expression):
         t = []
         
-        #print(expression)
         if isinstance(expression,list):
             operation = list(filter(lambda x: isinstance(x,VMCommand),[self.compare_command(term,[VMCommand(type='operation')]) for term in expression if isinstance(term,VMCommand)]))
-            #print(operation)
             if operation:                
                 print(f"recursion for operation {operation}, at index {expression.index(operation[0])}")
                 if expression.index(operation[0]):
@@ -103,7 +101,9 @@ class CodeWriter():
                 if function:
                     print(f"recursion for function {function}")
                     print(f'parameter list: {expression[1:]}')
-                    t.append(expression[1:])
+                    # for each item (list item) in function parameter list
+                    for param_list in expression[1:]:
+                        t.append(self.postfix_expression(param_list))
                     t.append(self.postfix_expression(expression[0]))
         else:
             print(f'constant: {expression}')
@@ -115,7 +115,6 @@ class CodeWriter():
         compares two commands
     '''
     def compare_command(self, input: VMCommand, expectation: VMCommand):
-        #print(f"i:{input}, exp: {expectation}")
         if any(
             [
                 (input.type if command.type else None)==command.type and 
@@ -162,7 +161,6 @@ def main():
         xml_tree = ET.parse(f"{os.path.join(os.getcwd(),file_path,file_name+'Syntax.xml')}")
         # update class variable table, by using "classVarDec" and "classVarDecList" tag
         class_name = [tag.text for tag in xml_tree.find('className')][0]
-        #print(class_name)
         cw = CodeWriter(class_name)
         
         for class_var_declaration in xml_tree.iterfind('classVarDec'):
@@ -215,22 +213,15 @@ def main():
                 for local_variable_name in local_variable_declaration[2::]:
                     cw.symbol_tables['subroutine'].define(symbol_name=local_variable_name, symbol_type=local_variable_declaration[1], symbol_kind='local')
                 
-            #print(cw.symbol_tables)
-
-            x = []
-            # writes expressions
-            for statments_declaration in subroutine_declaration.find('subroutineBody').find('statements'):            
-                #print(statments_declaration)
-                
-                for y in statments_declaration.findall('expression'):
-                    #print(y)
-                    x += cw.write_expression(y)
-            print(x)
             
-            #print(cw.postfix_expression(x))
-            print(cw.postfix_expression(x))
-            #print(cw.compare_command(VMCommand(type='function', value='Math.sqrt'),[VMCommand(type='function')]))
-                    
+            expression_vm_commands = []
+            # writes expressions
+            for statments_declaration in subroutine_declaration.find('subroutineBody').find('statements'):                
+                for statement_dec in statments_declaration.findall('expression'):                    
+                    expression_vm_commands += cw.write_expression(statement_dec)
+            print(f"Formatted expression {expression_vm_commands}")            
+            
+            print(f"Push commands: {cw.postfix_expression(expression_vm_commands)}")                    
     else:
         for file in os.listdir(args.file_path):
             if file.endswith(".jack"):

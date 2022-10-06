@@ -2,6 +2,6 @@ class Expression {
     static int x;
 
     function void func1(int b, int c) {
-        let x = (a+b)-(2*(Math.sqrt(7,3)));
+        let x = (-b)-(2*(Math.sqrt(7,3)));
     }
 }

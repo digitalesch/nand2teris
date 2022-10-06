@@ -21,8 +21,7 @@
 <identifier>x</identifier>
 <symbol>=</symbol>
 <symbol>(</symbol>
-<identifier>a</identifier>
-<symbol>+</symbol>
+<symbol>-</symbol>
 <identifier>b</identifier>
 <symbol>)</symbol>
 <symbol>-</symbol>

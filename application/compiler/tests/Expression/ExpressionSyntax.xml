@@ -41,8 +41,7 @@
 <expression>
 <symbol>(</symbol>
 <expression>
-<identifier>a</identifier>
-<operation>+</operation>
+<operation>-</operation>
 <identifier>b</identifier>
 </expression>
 <symbol>)</symbol>
