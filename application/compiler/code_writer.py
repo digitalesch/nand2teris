@@ -29,6 +29,11 @@ class CodeWriter():
     def __post_init__(self):
         self.symbol_tables = {'class': SymbolTable('class'), 'subroutine': SymbolTable('subroutine')}
         self.symbol_tables['subroutine'].start_subroutine(self.class_name)
+        self.translate = {
+            '>': 'gt',
+            '<': 'lt',
+            '=': 'eq',
+        }
 
     '''
         finds symbol in subroutine level and if not found, searches class symbol table. If both fail, error is thrown
@@ -52,15 +57,16 @@ class CodeWriter():
     def write_expression(self, expression: ET):
         vm_commands = []
         
-        for child in expression:
-            if child.tag in ['expression','expressionList']:
-                vm_commands.append(self.write_expression(child))
-            if child.tag in ['integerConstant','identifier']:
-                vm_commands.append(VMCommand('constant',child.text))
-            if child.tag in ['operation']:
-                vm_commands.append(VMCommand('operation',child.text))
-            if child.tag in ['subroutineCall']:
-                vm_commands.append(VMCommand('function',''.join([subroutine_call_name.text for subroutine_call_name in child])))
+        if expression:
+            for child in expression:            
+                if child.tag in ['expression','expressionList']:
+                    vm_commands.append(self.write_expression(child))
+                if child.tag in ['integerConstant','identifier']:
+                    vm_commands.append(VMCommand('constant',child.text))
+                if child.tag in ['operation']:
+                    vm_commands.append(VMCommand('operation',child.text))
+                if child.tag in ['subroutineCall']:
+                    vm_commands.append(VMCommand('function',''.join([subroutine_call_name.text for subroutine_call_name in child])))
         
         return vm_commands
 
@@ -71,7 +77,7 @@ class CodeWriter():
                 - when function is first element of expression, its "f(x1,x2,...)" type
             - when not list size is 1 and first element is constant, return constant
     '''
-    def postfix_expression(self,expression):
+    def postfix_expression(self,expression):        
         t = []
         
         if isinstance(expression,list):
@@ -126,6 +132,49 @@ class CodeWriter():
         else:
             return False
 
+    '''
+        returns compiled expression
+    '''
+    def treat_compiled_expression(self, statement: ET):
+        print(f"Formatted expression {self.write_expression(statement.find('expression'))}")
+        print(f"Push commands: {self.postfix_expression(self.write_expression(statement.find('expression')))}")        
+        return self.postfix_expression(self.write_expression(statement.find('expression')))
+
+    '''
+        statement treatment
+    '''
+    def treat_statement(self, statement: ET):
+        expression_vm_commands = []
+        if statement.tag == 'whileStatement':
+            pass
+        if statement.tag == 'letStatement':
+            print('compiling letStatement')
+            expression_vm_commands += self.treat_compiled_expression(statement)
+        if statement.tag == 'ifStatement':
+            '''
+                    compiled (expression)
+                    not
+                    if-goto L1
+                    compiled (statements1)
+                    goto L2
+                label L1
+                    compiled (statements2)
+                label L2
+            '''
+            print('compiling ifStatement')
+            # compiles condition
+            expression_vm_commands += self.treat_compiled_expression(statement)
+            expression_vm_commands.append(VMCommand(type='operation',value='~'))            
+            expression_vm_commands.append(VMCommand(type='ifgoto',value=f'label_else'))
+            for branch_statements_expression in statement.find('statements_if'):
+                expression_vm_commands += self.treat_compiled_expression(branch_statements_expression)
+            expression_vm_commands.append(VMCommand(type='goto',value=f'label_end'))
+            expression_vm_commands.append(VMCommand(type='label',value=f'label_else'))
+            for branch_statements_expression in statement.find('statements_else'):
+                expression_vm_commands += self.treat_compiled_expression(branch_statements_expression)
+            expression_vm_commands.append(VMCommand(type='label',value=f'label_end'))
+            
+        return expression_vm_commands
 
     '''
         compiles file, to output tokens and syntax
@@ -134,7 +183,7 @@ class CodeWriter():
         if os.path.isfile(f'{os.path.join(os.getcwd(),file_path)}'):
             CompilationEngine(file_path)        
         else:
-            for file in os.listdir(file_path):            
+            for file in os.listdir(file_path):
                 if file.endswith(".jack"):
                     CompilationEngine(os.path.join(file_path,file))
     
@@ -155,7 +204,7 @@ def main():
 
     # compiles folder / single file using CompilationEngine class
     if os.path.isfile(f'{os.path.join(os.getcwd(),args.file_path)}'):
-        CompilationEngine(args.file_path)
+        ce = CompilationEngine(args.file_path)
         file_path, file_full_name = os.path.split(args.file_path)
         file_name, file_extension = file_full_name.split('.')
         xml_tree = ET.parse(f"{os.path.join(os.getcwd(),file_path,file_name+'Syntax.xml')}")
@@ -165,7 +214,7 @@ def main():
         
         for class_var_declaration in xml_tree.iterfind('classVarDec'):
             tmp = []
-            for var_type in class_var_declaration:                
+            for var_type in class_var_declaration:
                 # adds to dict since its type or kind
                 if var_type.tag == 'keyword':
                     # kind and type variables
@@ -212,16 +261,16 @@ def main():
                 # two first elements have "var" keyword and type of varialbe, rest of list has variable names
                 for local_variable_name in local_variable_declaration[2::]:
                     cw.symbol_tables['subroutine'].define(symbol_name=local_variable_name, symbol_type=local_variable_declaration[1], symbol_kind='local')
-                
-            
-            expression_vm_commands = []
+
             # writes expressions
-            for statments_declaration in subroutine_declaration.find('subroutineBody').find('statements'):                
-                for statement_dec in statments_declaration.findall('expression'):                    
-                    expression_vm_commands += cw.write_expression(statement_dec)
-            print(f"Formatted expression {expression_vm_commands}")            
-            
-            print(f"Push commands: {cw.postfix_expression(expression_vm_commands)}")                    
+            for statements_declaration in subroutine_declaration.find('subroutineBody').find('statements'):                
+                print(f"STATEMENT: {statements_declaration}")
+                teste = cw.treat_statement(statements_declaration)
+                
+                for item in teste:
+                    print(item)
+                #print([cw.translate[item.value] if item.type in cw.translate else item.value for item in ce.flatten_list(teste)])
+
     else:
         for file in os.listdir(args.file_path):
             if file.endswith(".jack"):

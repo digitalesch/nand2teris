@@ -2,6 +2,11 @@ class Expression {
     static int x;
 
     function void func1(int b, int c) {
-        let x = (-b)-(2*(Math.sqrt(7,3)));
+        if (a=1) {
+            let a = 1;
+        }
+        else {
+            let a = (5+2)*2;
+        }
     }
 }

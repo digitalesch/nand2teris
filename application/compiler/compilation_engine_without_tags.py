@@ -449,22 +449,22 @@ class CompilationEngine():
             self.compare_token(self.advance(),[SyntaxToken(type='symbol',value=')')]),
             self.compare_token(self.advance(),[SyntaxToken(type='symbol',value='{')]),
         ]
-        if_statement.append(SyntaxToken(type='tag_start',value='statements'))
+        if_statement.append(SyntaxToken(type='tag_start',value='statements_if'))
 
         if_statement += self.compile_statements()
-        if_statement.append(SyntaxToken(type='tag_end',value='statements'))
+        if_statement.append(SyntaxToken(type='tag_end',value='statements_if'))
         if_statement.append(self.compare_token(self.advance(),[SyntaxToken(type='symbol',value='}')]))
 
         current_token = self.advance()
-        #print(f'if {current_token}')
         # checks if expression evaluation is needed
         if current_token.value == 'else':
             if_statement += [
                 current_token,
                 self.compare_token(self.advance(),[SyntaxToken(type='symbol',value='{')])
             ]
-
+            if_statement.append(SyntaxToken(type='tag_start',value='statements_else'))
             if_statement += self.compile_statements()
+            if_statement.append(SyntaxToken(type='tag_end',value='statements_else'))
             if_statement.append(self.compare_token(self.advance(),[SyntaxToken(type='symbol',value='}')]))
         else:
             self.current_token_index -= 1            
