@@ -16,8 +16,8 @@ Will only need to mantain two symbol tables:
 
 @dataclass
 class VMCommand():
-    type:       str
-    value:      str
+    type:       str = None
+    value:      str = None
 
 @dataclass
 class CodeWriter():
@@ -47,22 +47,7 @@ class CodeWriter():
         self.symbol_tables[scope].define(symbol_name=symbol_name, symbol_type=symbol_type, symbol_kind=symbol_kind)
 
     '''
-        uses rule:
-            if expression is a number n:
-                output "push n"
-            if expression is a variable var:
-                output "push var"
-            if expression is "exp1 op exp2"
-                write_expression(exp1)
-                write_expression(exp2)
-                output "op"
-            if expression is "op exp"
-                write_expression(exp)
-                output "op"
-            if expression is "f(exp1, exp2))"
-                write_expression(exp1)
-                write_expression(exp2)
-                output "call f"
+        
     '''
     def write_expression(self, expression: ET):
         vm_commands = []
@@ -71,7 +56,6 @@ class CodeWriter():
             if child.tag in ['expression','expressionList']:
                 vm_commands.append(self.write_expression(child))
             if child.tag in ['integerConstant','identifier']:
-                #vm_commands.append(f"push {child.text}")
                 vm_commands.append(VMCommand('constant',child.text))
             if child.tag in ['operation']:
                 vm_commands.append(VMCommand('operation',child.text))
@@ -79,25 +63,70 @@ class CodeWriter():
                 vm_commands.append(VMCommand('function',''.join([subroutine_call_name.text for subroutine_call_name in child])))
         
         return vm_commands
+
+    '''
+        rule:
+            - when list is found, recursively uses function
+                - when operator type is found, exp is either "exp1 op exp2" or "op exp"
+                - when function is first element of expression, its "f(x1,x2,...)" type
+            - when not list size is 1 and first element is constant, return constant
+    '''
+    def postfix_expression(self,expression):
+        t = []
         
-    '''
-        post fixes expression commands, since they are appended in order
-    '''
-    def postfix_expression(self, expressions: list):
-        tmp = []
-        for command in expressions:
-            print(command)
-            if isinstance(command,list):
-                tmp += self.postfix_expression(command)
+        #print(expression)
+        if isinstance(expression,list):
+            operation = list(filter(lambda x: isinstance(x,VMCommand),[self.compare_command(term,[VMCommand(type='operation')]) for term in expression if isinstance(term,VMCommand)]))
+            #print(operation)
+            if operation:                
+                print(f"recursion for operation {operation}, at index {expression.index(operation[0])}")
+                if expression.index(operation[0]):
+                    print(f'exp1: {expression[0]}')
+                    t.append(self.postfix_expression(expression[0]))
+                    # provides context for exp1 op exp2, when not found, it's op exp
+                    print(f'exp2: {expression[2]}')
+                    t.append(self.postfix_expression(expression[2]))
+                    print(f'op: {operation[0]}')
+                    t.append(operation[0])
+                else:
+                    print('exp')
+                    t.append(self.postfix_expression(expression[1]))
+                    print('op')
+                    t.append(operation[0])
+            # no operation is found
             else:
-                if len(expressions)==3:
-                    print('xxx')
-                    print(expressions)
-                    expressions.insert(1,expressions[2])
-                    expressions.pop()
-                    print(expressions)
-                    tmp += expressions
-        return tmp
+                print('else')
+                # consant
+                if len(expression) == 1:
+                    t.append(self.postfix_expression(expression[0]))
+                function = list(filter(lambda x: isinstance(x,VMCommand),[self.compare_command(term,[VMCommand(type='function')]) for term in expression if isinstance(term,VMCommand)]))
+                if function:
+                    print(f"recursion for function {function}")
+                    print(f'parameter list: {expression[1:]}')
+                    t.append(expression[1:])
+                    t.append(self.postfix_expression(expression[0]))
+        else:
+            print(f'constant: {expression}')
+            t.append(expression)
+
+        return t
+
+    '''
+        compares two commands
+    '''
+    def compare_command(self, input: VMCommand, expectation: VMCommand):
+        #print(f"i:{input}, exp: {expectation}")
+        if any(
+            [
+                (input.type if command.type else None)==command.type and 
+                (input.value if command.value else None)==command.value 
+                for command in expectation
+            ]
+        ):
+            return input
+        else:
+            return False
+
 
     '''
         compiles file, to output tokens and syntax
@@ -186,28 +215,21 @@ def main():
                 for local_variable_name in local_variable_declaration[2::]:
                     cw.symbol_tables['subroutine'].define(symbol_name=local_variable_name, symbol_type=local_variable_declaration[1], symbol_kind='local')
                 
-            print(cw.symbol_tables)
+            #print(cw.symbol_tables)
 
             x = []
             # writes expressions
             for statments_declaration in subroutine_declaration.find('subroutineBody').find('statements'):            
-                print(statments_declaration)
+                #print(statments_declaration)
                 
                 for y in statments_declaration.findall('expression'):
-                    print(y)
+                    #print(y)
                     x += cw.write_expression(y)
             print(x)
-            t = []
-            for item in enumerate(x):
-                if item[1].type == 'operation':
-                    tmp = item                    
-                else:
-                    t.append(item)
-            t.append(tmp)
-
-            print(t)
-
+            
             #print(cw.postfix_expression(x))
+            print(cw.postfix_expression(x))
+            #print(cw.compare_command(VMCommand(type='function', value='Math.sqrt'),[VMCommand(type='function')]))
                     
     else:
         for file in os.listdir(args.file_path):

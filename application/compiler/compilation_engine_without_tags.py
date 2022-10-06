@@ -620,10 +620,13 @@ class CompilationEngine():
                 self.current_token_index -= 1
         # checks for unaryOp term rule, by checking first list value is unaryOp ("-" | "~")
         if term[0].value in ['-','~']:
-            term.append(term[0])
-            term[0] = SyntaxToken(type='tag_start',value='operation')
-            term.append(SyntaxToken(type='tag_end',value='operation'))
+            #term.append(term[0])
+            #term.append(SyntaxToken(type='operation',value=term[0].value))
+            #term[0] = SyntaxToken(type='tag_start',value='operation')
+            term[0] = SyntaxToken(type='operation',value=term[0].value)
+            #term.append(SyntaxToken(type='tag_end',value='operation'))            
             term += self.compile_term()
+            print(term)
         # checks for '(' expression ')'
         if self.current_token.value in ['(']:
             term += self.compile_expression()
@@ -718,7 +721,7 @@ class CompilationEngine():
 
     def execute_compilation(self):
         class_statments = self.compile_class()
-        print(class_statments)
+        #print(class_statments)
         flattened_statements = [self.return_xml_tag(syntax_token) for syntax_token in self.flatten_list(class_statments)]
         with open(f"{os.path.join(os.getcwd(),self.file_folder)}/{self.file_name}Syntax.xml",'w') as fp:
             fp.write('\n'.join(flattened_statements)+'\n')        
