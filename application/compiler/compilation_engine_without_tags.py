@@ -260,17 +260,17 @@ class CompilationEngine():
             ]
    '''
     def compile_parameter_list(self):
-        #print('entered compile_parameter_list')
+        print('entered compile_parameter_list')
         parameter_list = []
 
+        print('aaa')
         current_token = self.advance()
-        if all(
-            [
-                current_token.type in ['keyword'],
-                current_token.value in ['int','char','boolean']
-            ]
+        if any(
+                [
+                    current_token.type in ['keyword'] and current_token.value in ['int','char','boolean'],
+                    current_token.type in ['identifier']
+                ]            
         ):
-
             parameter_list += [
                 self.compare_token(
                     current_token,
