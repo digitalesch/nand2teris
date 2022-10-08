@@ -1,0 +1,6 @@
+class Main {
+    function void main() {
+        var Point p1;
+        let p1 = Point.new(2,3);
+    }
+}

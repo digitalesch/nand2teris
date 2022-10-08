@@ -7,6 +7,14 @@ import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from typing import Iterable 
 
+def flatten_list(items):
+    for x in items:
+        if isinstance(x, Iterable) and not isinstance(x, (str, bytes)):
+            for sub_x in flatten_list(x):
+                yield sub_x
+        else:
+            yield x
+
 @dataclass
 class SyntaxToken():
     type:   str = None
@@ -722,7 +730,7 @@ class CompilationEngine():
     def execute_compilation(self):
         class_statments = self.compile_class()
         #print(class_statments)
-        flattened_statements = [self.return_xml_tag(syntax_token) for syntax_token in self.flatten_list(class_statments)]
+        flattened_statements = [self.return_xml_tag(syntax_token) for syntax_token in flatten_list(class_statments)]
         with open(f"{os.path.join(os.getcwd(),self.file_folder)}/{self.file_name}Syntax.xml",'w') as fp:
             fp.write('\n'.join(flattened_statements)+'\n')        
 
