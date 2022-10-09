@@ -1,6 +1,7 @@
 class Main {
     function void main() {
-        var Point p1;
-        let p1 = Point.new(2,3);
+        var Point p1, p2;
+        let p1 = Point.new(1,1);
+        let p2 = Point.new(2,3);
     }
 }

@@ -11,9 +11,11 @@
 <keyword>var</keyword>
 <identifier>Point</identifier>
 <identifier>p1</identifier>
+<symbol>,</symbol>
+<identifier>p2</identifier>
 <symbol>;</symbol>
 <keyword>let</keyword>
-<identifier>p1</identifier>
+<identifier>p2</identifier>
 <symbol>=</symbol>
 <identifier>Point</identifier>
 <symbol>.</symbol>
