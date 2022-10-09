@@ -605,7 +605,6 @@ class CompilationEngine():
                 ]
             ),
         ]
-        print(term)
 
         # checks for varName | varName '[' expression ']' | subroutineCall rules
         if self.current_token.type == 'identifier':
