@@ -17,7 +17,7 @@ class LexicalTokenizer():
     code: str
 
     def tokenize(self):
-        keywords    = {'int', 'var', 'class', 'let','return','class','void','function','while','do','static','boolean','if','false','true','null','else','field','constructor','this','method','char'}
+        keywords    = {'int', 'var', 'class', 'let','return','class','void','function','while','do','static','boolean','if','false','true','null','else','field','constructor','this','method','char','that'}
         symbols     = {'\+','\-','\*',';','<','>','=','\|','\&','\,','\.',',','\[','\]','\/','\(', '\)', '{', '}',"'",'~'}
         token_specification = [
             ('comments',        r'//.*|/\*(.|[\r\n])*?\*/'),   # Gets comments till the end of line
