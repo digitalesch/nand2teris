@@ -263,7 +263,6 @@ class CompilationEngine():
         print('entered compile_parameter_list')
         parameter_list = []
 
-        print('aaa')
         current_token = self.advance()
         if any(
                 [
@@ -585,7 +584,7 @@ class CompilationEngine():
     '''
     # no null term possible
     def compile_term(self):
-        #print('entered compile_term')
+        print('entered compile_term')
         term = []        
         term += [
             self.compare_token(
@@ -601,9 +600,12 @@ class CompilationEngine():
                     SyntaxToken(value='('),
                     SyntaxToken(value='-'),
                     SyntaxToken(value='~'),
+                    SyntaxToken(type='keyword',value='this'),
+                    SyntaxToken(type='keyword',value='that')
                 ]
             ),
         ]
+        print(term)
 
         # checks for varName | varName '[' expression ']' | subroutineCall rules
         if self.current_token.type == 'identifier':
