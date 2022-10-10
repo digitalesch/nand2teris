@@ -1,7 +1,7 @@
 class Point {
     field int x, y;
     static int pointCount;
-
+    /*
     constructor Point new(int ax, int ay) {
         let x = ax;
         let y = ay;
@@ -9,12 +9,26 @@ class Point {
         return this;
     }
 
-    /*
     method int distance(Point other) {
         var int dx, dy;
-        let dx = x - other.getx(1,2);
+        let dx = x - other.getx();
         let dy = y - other.gety();
         return Math.sqrt((dx*dx)+(dy*dy));
+    }*/
+
+    method void print(){
+        var Array arr;
+        var int a;
+
+        let arr = Array.new(5);
+        //let a = 6+2;
+        //let a[0] = 5;
+        //let a[1] = arr[0] + 2;
+
+        return;
     }
-    */
+
+    method int a(){
+        return 1;
+    }
 }

@@ -1,0 +1,13 @@
+function Point.print
+push argument 0
+pop pointer 0
+push constant 5
+call Array.new
+push local 0
+push constant 0
+return
+function Point.a
+push argument 0
+pop pointer 0
+push constant 1
+return
