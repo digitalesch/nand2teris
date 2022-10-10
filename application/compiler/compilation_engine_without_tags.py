@@ -260,7 +260,7 @@ class CompilationEngine():
             ]
    '''
     def compile_parameter_list(self):
-        print('entered compile_parameter_list')
+        #print('entered compile_parameter_list')
         parameter_list = []
 
         current_token = self.advance()
@@ -416,22 +416,28 @@ class CompilationEngine():
     '''
     def compile_let(self):
         #print('entered compile_let')
+        change_tag = False
         let_statement = [
             self.compare_token(self.advance(),[SyntaxToken(type='keyword',value='let')]),
             SyntaxToken(type='tag_start',value='assignVariable'),
+            SyntaxToken(type='tag_start',value='assignVariableName'),
             self.compare_token(self.advance(),[SyntaxToken(type='identifier')]),
+            SyntaxToken(type='tag_end',value='assignVariableName'),
         ]
 
         current_token = self.advance()
         
         # checks if expression evaluation is needed
         if current_token.value == '[':
+            change_tag = True
             let_statement.append(self.compare_token(current_token,[SyntaxToken(type='symbol',value='[')]))
             let_statement += self.compile_expression()
             let_statement.append(self.compare_token(self.advance(),[SyntaxToken(type='symbol',value=']')]))
         else:
             self.current_token_index -= 1
-        let_statement.append(SyntaxToken(type='tag_end',value='assignVariable'))
+        let_statement.append(SyntaxToken(type='tag_end',value='assignVariable' if not change_tag else 'arrayAssignment'))
+        if change_tag:
+            let_statement[let_statement.index(SyntaxToken(type='tag_start',value='assignVariable'))]=SyntaxToken(type='tag_start',value='arrayAssignment')
         let_statement.append(self.compare_token(self.advance(),[SyntaxToken(type='symbol',value='=')]))
         #let_statement.append(SyntaxToken(type='tag_start',value='evaluateExpression'))
         let_statement += self.compile_expression()
@@ -584,7 +590,7 @@ class CompilationEngine():
     '''
     # no null term possible
     def compile_term(self):
-        print('entered compile_term')
+        #print('entered compile_term')
         term = []        
         term += [
             self.compare_token(
@@ -614,9 +620,11 @@ class CompilationEngine():
             if current_token.value in ['[', '(', '.']:
                 # rule: varName '[' expression ']'
                 if current_token.value == '[':
+                    term.insert(0,SyntaxToken(type='tag_start',value='arrayType'))
                     term.append(self.compare_token(current_token,[SyntaxToken(type='symbol',value='[')]))
                     term += self.compile_expression()
                     term.append(self.compare_token(self.advance(),[SyntaxToken(type='symbol',value=']')]))
+                    term.append([SyntaxToken(type='tag_end',value='arrayType')])
                 # compile subroutinecall
                 else:
                 #if current_token.value in ['(', '.']:
@@ -635,7 +643,7 @@ class CompilationEngine():
             term[0] = SyntaxToken(type='operation',value=term[0].value)
             #term.append(SyntaxToken(type='tag_end',value='operation'))            
             term += self.compile_term()
-            print(term)
+            #print(term)
         # checks for '(' expression ')'
         if self.current_token.value in ['(']:
             term += self.compile_expression()
