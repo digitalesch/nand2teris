@@ -28,11 +28,12 @@ class SymbolTable():
     '''
         starts compilation of subroutine symbol table, by defining the "this" first argument with className type
     '''
-    def start_subroutine(self, class_name: str):
+    def start_subroutine(self, class_name: str, subroutine_type: str):
         if self.scope == 'subroutine':
             self.symbol_table = {}
             self.indexes = {'argument':0,'local':0}
-            self.define(symbol_name='this', symbol_type=class_name, symbol_kind='argument')
+            if subroutine_type == 'method':
+                self.define(symbol_name='this', symbol_type=class_name, symbol_kind='argument')
 
     '''
         add entry to symbol symbol_table with:
