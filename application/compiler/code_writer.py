@@ -1,6 +1,7 @@
 # built-in
 from dataclasses import dataclass
 import argparse, os
+from multiprocessing.sharedctypes import Value
 from threading import local
 import xml.etree.ElementTree as ET
 
@@ -28,8 +29,11 @@ class CodeWriter():
         creates class and subroutine symbol tables
     '''
     def __post_init__(self):
-        self.symbol_tables = {'class': SymbolTable('class'), 'subroutine': SymbolTable('subroutine')}
-        self.symbol_tables['subroutine'].start_subroutine(self.class_name)
+        self.symbol_tables = {
+            'class': SymbolTable('class'), 
+            'subroutine': SymbolTable('subroutine'), 
+            'function':SymbolTable('subroutine')
+        }
         self.translate = {
             '>': 'gt',
             '<': 'lt',
@@ -58,12 +62,15 @@ class CodeWriter():
     def write_expression(self, expression: ET, type: str = None) -> list:
         vm_commands = []
         
+        #print(f'E: {expression}')
         if expression:
-            for child in expression:      
+            for child in expression:
+                #print(child)
                 if child.tag in ['expression','expressionList']:
                     vm_commands.append(self.write_expression(child))
                 if child.tag in ['identifier']:
-                    vm_commands.append(VMCommand('variable' if type != 'assignVariable' else 'assignVariable',child.text))
+                    #print(type)
+                    vm_commands.append(VMCommand('variable' if type not in ['assignVariable','assignVariableName'] else 'assignVariable',child.text))                    
                 if child.tag in ['keyword']:
                     vm_commands.append(VMCommand('keyword',child.text))
                 if child.tag in ['integerConstant']:
@@ -71,8 +78,13 @@ class CodeWriter():
                 if child.tag in ['operation']:
                     vm_commands.append(VMCommand('operation',child.text))
                 if child.tag in ['subroutineCall']:
-                    vm_commands.append(VMCommand('function',''.join([subroutine_call_name.text for subroutine_call_name in child])))
-        
+                    subroutine_call_values = [subroutine_call_name.text for subroutine_call_name in child]
+                    # gets different value if its a built-in
+                    vm_commands.append(VMCommand('function' if subroutine_call_values[0] not in ['Math','Array','Sys'] else 'systemFunction',''.join(subroutine_call_values)))
+                if child.tag in ['arrayType']:
+                    vm_commands.append(VMCommand('arrayType',child.find('identifier').text))
+                    #pass
+
         return vm_commands
 
     '''
@@ -90,32 +102,31 @@ class CodeWriter():
             if operation:                
                 #print(f"recursion for operation {operation}, at index {expression.index(operation[0])}")
                 if expression.index(operation[0]):
-                    #print(f'exp1: {expression[0]}')
                     t.append(self.postfix_expression(expression[0]))
                     # provides context for exp1 op exp2, when not found, it's op exp
-                    #print(f'exp2: {expression[2]}')
                     t.append(self.postfix_expression(expression[2]))
-                    #print(f'op: {operation[0]}')
                     t.append(operation[0])
                 else:
-                    #print('exp')
                     t.append(self.postfix_expression(expression[1]))
-                    #print('op')
                     t.append(operation[0])
             # no operation is found
             else:
-                #print('else')
                 # consant
                 if len(expression) == 1:
                     t.append(self.postfix_expression(expression[0]))
-                function = list(filter(lambda x: isinstance(x,VMCommand),[self.compare_command(term,[VMCommand(type='function')]) for term in expression if isinstance(term,VMCommand)]))
+                function = list(filter(lambda x: isinstance(x,VMCommand),[self.compare_command(term,[VMCommand(type='function'),VMCommand(type='systemFunction')]) for term in expression if isinstance(term,VMCommand)]))
                 if function:
-                    #print(f"recursion for function {function}")
-                    #print(f'parameter list: {expression[1:]}')
                     # for each item (list item) in function parameter list
                     for param_list in expression[1:]:
                         t.append(self.postfix_expression(param_list))
-                    t.append(self.postfix_expression(expression[0]))
+                    t.append(self.postfix_expression(expression[0]))  
+                assignment = list(filter(lambda x: isinstance(x,VMCommand),[self.compare_command(term,[VMCommand(type='arrayAssignment')]) for term in expression if isinstance(term,VMCommand)]))
+                if assignment:
+                    t.append(VMCommand(type='arrayAssignment',value=assignment[0].value))
+                    t.append(self.postfix_expression(expression[1:]))
+                array_type = list(filter(lambda x: isinstance(x,VMCommand),[self.compare_command(term,[VMCommand(type='arrayType')]) for term in expression if isinstance(term,VMCommand)]))
+                if array_type:
+                    pass
         else:
             #print(f'constant: {expression}')            
             t.append(expression)
@@ -141,8 +152,6 @@ class CodeWriter():
         returns compiled expression
     '''
     def treat_compiled_expression(self, statement: ET, tag: str):
-        #print(f"Formatted expression {self.write_expression(statement.find(tag))}")
-        #print(f"Push commands: {self.postfix_expression(self.write_expression(statement.find(tag),tag))}")        
         return self.postfix_expression(self.write_expression(statement.find(tag),tag))
 
     '''
@@ -170,11 +179,26 @@ class CodeWriter():
             expression_vm_commands.append(VMCommand(type='label',value=f'label_end'))
         if statement.tag == 'letStatement':
             print('compiling letStatement')
-            #print(statement.find('assignVariable'))
-            # gets expression compiled
-            expression_vm_commands += self.treat_compiled_expression(statement,'expression')
-            # assigns to variable
-            expression_vm_commands += self.treat_compiled_expression(statement,'assignVariable')
+            #print(statement.find('arrayAssignment'))
+
+            array_assignment = statement.find('arrayAssignment')
+            if array_assignment:
+                expression_vm_commands += [
+                    self.treat_compiled_expression(array_assignment,'assignVariableName'),
+                    self.treat_compiled_expression(array_assignment,'expression'),
+                    VMCommand(type='operation',value='+'),
+                    self.treat_compiled_expression(statement,'expression'),
+                    VMCommand(type='literal',value='pop temp 0'),
+                    VMCommand(type='literal',value='pop pointer 1'),
+                    VMCommand(type='literal',value='push temp 0'),
+                    VMCommand(type='literal',value='pop that 0'),
+                ]
+                #print(expression_vm_commands)
+            else:
+                # gets expression compiled
+                expression_vm_commands += self.treat_compiled_expression(statement,'expression')
+                # assigns to variable
+                expression_vm_commands += self.treat_compiled_expression(statement.find('assignVariable'),'assignVariableName')                
         if statement.tag == 'ifStatement':
             '''
                     compiled (expression)
@@ -201,6 +225,9 @@ class CodeWriter():
         if statement.tag == 'returnStatement':
             print('compiling returnStatement')
             expression_vm_commands += self.treat_compiled_expression(statement,'expression')
+            # null expression returned
+            if len(expression_vm_commands)==0:
+                expression_vm_commands.append(VMCommand(type='constant',value='0'))    
             expression_vm_commands.append(VMCommand(type='literal',value='return'))
         
         return expression_vm_commands
@@ -215,12 +242,6 @@ class CodeWriter():
             for file in os.listdir(file_path):
                 if file.endswith(".jack"):
                     CompilationEngine(os.path.join(file_path,file))
-
-    '''
-        compiles class constructor vmcommands
-    '''
-    def treat_constructor(self):
-        pass
     
 def main():
     arguments_list = [
@@ -256,6 +277,8 @@ def main():
         class_name = [tag.text for tag in xml_tree.find('className')][0]
         print(f'Compiling {class_name}!')
 
+        procedural_commands = []
+
         cw = CodeWriter(class_name)
         
         for class_var_declaration in xml_tree.iterfind('classVarDec'):
@@ -273,14 +296,16 @@ def main():
 
         # checks for subroutines
         for subroutine_declaration in xml_tree.iterfind('subroutineDec'):
-            cw.symbol_tables['subroutine'].start_subroutine(cw.class_name)
             # check for parameter list, to create entry in subroutine symbol table
             tmp_param = []
 
             subroutine_type = subroutine_declaration.find('keyword').text
             subroutine_name = subroutine_declaration.find('subroutineName').find('identifier').text
             print(f"Running '{subroutine_name}' function of type {subroutine_type}!")
+            cw.symbol_tables['function'].define(subroutine_name,subroutine_type,'local')
 
+            cw.symbol_tables['subroutine'].start_subroutine(class_name,subroutine_type)
+            
             # creates parameters as a list, since comma separates them, ex: "int a, int b" -> ['int', 'a', 'int', 'b']
             for parameter in subroutine_declaration.find('parameterList'):
                 if parameter.tag != 'symbol':
@@ -312,6 +337,8 @@ def main():
 
             vm_commands = []
 
+            vm_commands.append(VMCommand(type='literal',value=f'function {class_name}.{subroutine_name}'))
+
             if subroutine_type == 'constructor':
                 print(f'initializing constructor code for class {class_name}!')
                 fields = [value for key, value in cw.symbol_tables['class'].symbol_table.items() if value['kind']=='field']
@@ -331,24 +358,21 @@ def main():
             for statements_declaration in subroutine_declaration.find('subroutineBody').find('statements'):                
                 vm_commands += cw.treat_statement(statements_declaration)
 
+            #print(vm_commands)
             postfix_commands = list(flatten_list(vm_commands))
             print(postfix_commands)    
-            #print(cw.symbol_tables)
-
-            procedural_commands = []
+            print(cw.symbol_tables)
 
             for item in postfix_commands:
+                #print(item)
                 if item.type == 'literal':
-                    #print(item.value)
                     procedural_commands.append(item.value)
                 if item.type in ['constant']:
-                    #print(f'push {item.value}')
-                    procedural_commands.append(f'push {item.value}')
+                    procedural_commands.append(f'push constant {item.value}')
                 # gets variable index from symbol table
-                if item.type in ['variable','assignVariable']:
+                if item.type in ['variable','assignVariable','arrayAssignment','arrayType']:
                     found_symbol = cw.search_symbol_table(item.value)
-                    #print(f"{'push' if item.type == 'variable' else 'pop'} {found_symbol[1]['kind'] if found_symbol[1]['kind'] != 'field' else 'this'} {found_symbol[1]['index']}")
-                    procedural_commands.append(f"{'push' if item.type == 'variable' else 'pop'} {found_symbol[1]['kind'] if found_symbol[1]['kind'] != 'field' else 'this'} {found_symbol[1]['index']}")
+                    procedural_commands.append(f"{'push' if item.type in ['variable','arrayAssignment'] else 'pop'} {found_symbol[1]['kind'] if found_symbol[1]['kind'] != 'field' else 'this'} {found_symbol[1]['index']}")
                 if item.type == 'operation':
                     operation_transalate = {
                         '=':'eq',
@@ -357,28 +381,36 @@ def main():
                         '-':'sub',
                         '*':'call Math.multiply 2'
                     }
-                    #print(f'{operation_transalate[item.value]}')
                     procedural_commands.append(f'{operation_transalate[item.value]}')
                 if item.type == 'function':
-                    print(f"call {item.value}")
-                    # forma tosca, que precisaria separar o nome do objeto e da função
-                    #print(item.value.split('.'))
                     subroutine_call_object,subroutine_call_function = item.value.split('.')
-                    # condition to get system calls
-                    '''
-                    if subroutine_call_object not in ['Math']:
+                    print(item)
+                    
+                    try:
                         found_symbol = cw.search_symbol_table(subroutine_call_object)
-                        print(found_symbol)
-                        procedural_commands.append(f"push {found_symbol[1]['kind']} {found_symbol[1]['index']}")                        
-                        procedural_commands.append(f"call {found_symbol[1]['type']}.{subroutine_call_function}")
-                    else:
-                    '''
-                    procedural_commands.append(f"call {item.value}")
+                        #print(found_symbol)
+                        procedural_commands += [
+                            f"push {found_symbol[1]['kind']} {found_symbol[1]['index']}",
+                            f"call {found_symbol[1]['type']}.{subroutine_call_function} 1"
+                        ]
+                    except ValueError as VE:
+                        print(VE)
+                        if subroutine_call_object not in ['Math','Array','Sys']:
+                            procedural_commands += [
+                                f"call {item.value}"
+                            ]
+
                 # compiles this / that
                 if item.type == 'keyword':
                     procedural_commands.append(f"push pointer {0 if item.value == 'this' else 1}")
 
-            print(procedural_commands)
+                if item.type == 'systemFunction':
+                    procedural_commands.append(f"call {item.value}")
+
+            print(procedural_commands)            
+        
+        with open(f"{os.path.join(os.getcwd(),file_path,file_name+'.vm')}",'w') as fp:
+            fp.write('\n'.join(procedural_commands))
 
 if __name__ == '__main__':
     main()
