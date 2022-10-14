@@ -1,0 +1,13 @@
+class Main {
+    function void main() {
+	    var int value, not_val;
+        let value = 1;
+        let not_val = 0;
+        if (value = (not_val + 1)) {
+            do Output.printInt(value);
+        } else {
+            do Output.printInt(2999);
+        }
+        return;
+    }
+}

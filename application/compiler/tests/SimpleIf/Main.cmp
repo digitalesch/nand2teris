@@ -1,0 +1,20 @@
+function Main.main 1
+push constant 1
+pop local 0
+push local 0
+push constant 1
+gt
+if-goto IF_TRUE0
+goto IF_FALSE0
+label IF_TRUE0
+push local 0
+call Output.printInt 1
+pop temp 0
+goto IF_END0
+label IF_FALSE0
+push constant 2999
+call Output.printInt 1
+pop temp 0
+label IF_END0
+push constant 0
+return

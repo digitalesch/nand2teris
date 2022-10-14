@@ -1,0 +1,12 @@
+class Main {    
+    function void main() {
+	    var int value;
+        
+        let value = 0;
+
+        if (value = 0) {
+            let value = 1;
+            do Output.printInt();
+        }
+    }
+}

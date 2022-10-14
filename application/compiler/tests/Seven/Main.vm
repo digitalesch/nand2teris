@@ -1,0 +1,17 @@
+function Main.retsqrt 0
+push argument 0
+pop pointer 0
+push argument 1
+call Math.sqrt 1
+return
+function Main.main 1
+push argument 0
+pop pointer 0
+push constant 36
+pop local 0
+push pointer 0
+push local 0
+call Main.retsqrt 2
+pop temp 0
+push constant 0
+return

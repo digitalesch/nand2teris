@@ -1,13 +1,15 @@
-function Main.main
+function Main.main 2
 push constant 2
 push constant 3
-call Point.new
+call Point.new 2
 pop local 0
-pop local 1
 push constant 0
+push local 1
 add
 push constant 1
 pop temp 0
 pop pointer 1
 push temp 0
 pop that 0
+push constant 0
+return

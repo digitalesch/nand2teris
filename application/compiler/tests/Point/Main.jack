@@ -4,5 +4,6 @@ class Main {
         var Array arr;
         let p2 = Point.new(2,3);
         let arr[0] = 1;
+        return;
     }
 }

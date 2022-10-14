@@ -58,16 +58,30 @@ class SymbolTable():
 
         raise ValueError(f'Value "{symbol_name}" not found in symbol table {self.scope}!')
 
+    '''
+        find element based on symbol name and feature type, kind, index
+    '''
+    def find_type(self,symbol_kind: str):
+        #print([key for key, value in self.symbol_table.items() if value['kind'] == symbol_kind])
+        return [key for key, value in self.symbol_table.items() if value['kind'] == symbol_kind]
+
+        '''
+        if symbol_name in self.symbol_table.keys():            
+            return self.symbol_table[symbol_name][feature] if feature != 'total' else self.symbol_table[symbol_name]
+
+        raise ValueError(f'Value "{symbol_name}" not found in symbol table {self.scope}!')
+        '''
+
 def main():
     class_symbol_table = SymbolTable('class')
     class_symbol_table.define('aaa','local','field')
     class_symbol_table.define('aaa2','local','static')
-    print(class_symbol_table.find_symbol('aaa','kind'))
+    #print(class_symbol_table.find_symbol('aaa','kind'))
 
     subroutine_symbol_table = SymbolTable('subroutine')
     subroutine_symbol_table.start_subroutine('Point')
     subroutine_symbol_table.define('aaa2','local','local')
-    print(subroutine_symbol_table.symbol_table)
+    #print(subroutine_symbol_table.symbol_table)
 
 if __name__ == '__main__':
     main()

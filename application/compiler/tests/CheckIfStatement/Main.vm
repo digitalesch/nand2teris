@@ -1,0 +1,8 @@
+function Main.main 0
+push constant 0
+push local 0
+push constant 0
+eq
+not
+push constant 1
+call Output.printInt 1
