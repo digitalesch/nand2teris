@@ -31,6 +31,15 @@
 <symbol>-</symbol>
 <integerConstant>1</integerConstant>
 <symbol>;</symbol>
+<keyword>if</keyword>
+<symbol>(</symbol>
+<integerConstant>0</integerConstant>
+<symbol>)</symbol>
+<symbol>{</symbol>
+<symbol>}</symbol>
+<keyword>else</keyword>
+<symbol>{</symbol>
+<symbol>}</symbol>
 <symbol>}</symbol>
 <keyword>return</keyword>
 <symbol>;</symbol>

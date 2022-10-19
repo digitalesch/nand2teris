@@ -439,6 +439,7 @@ def main():
 
             logging.debug(f"{[(cmd.type,cmd.value) for cmd in list(flatten_list(vm_commands))]}")
             print(vm_commands)
+            
             postfix_commands = list(flatten_list(vm_commands))
             #print(postfix_commands)    
             ##print(cw.symbol_tables)
@@ -521,6 +522,7 @@ def main():
                     for i in range(len(item.value)):
                         procedural_commands.append(f'push constant {ord(item.value[i])}')
                         procedural_commands.append('call String.appendChar 2')
+                
 
 
             #print(f"End of '{subroutine_name}' compilation!")

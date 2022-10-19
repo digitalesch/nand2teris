@@ -3,7 +3,7 @@ from dataclasses import dataclass
 from yaml import parse
 from lexical_tokenizer import LexicalTokenizer, MismatchedValueError
 import xml.etree.ElementTree as ET
-import argparse, os, sys
+import argparse, os
 
 @dataclass
 class Parser():
@@ -54,7 +54,7 @@ class Parser():
         all_descendants = ['<tokens>']+[f'<{child.tag}>{translate[child.text] if child.text in translate else child.text}</{child.tag}>' for child in list(xml.iter()) if child.text is not None]+['</tokens>']
         with open(f'{self.file_path if not base_path else base_path}/{file_name}Tokens.xml','w') as fp:
             fp.write('\n'.join(all_descendants)+'\n')
-        print(f'Parser saved token content to {self.file_path if not base_path else base_path}/{file_name}Tokens.xml')
+        print(f'Parser saved token content to {self.file_path if not base_path else base_path}/{file_name}Tokens.xml')        
 
     '''
         Desc:

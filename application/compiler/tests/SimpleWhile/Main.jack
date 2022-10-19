@@ -5,6 +5,12 @@ class Main {
         
         while (value > 0) {
             let value = value - 1;
+            if (0) {
+
+            }
+            else {
+                
+            }
         }
         return;
     }

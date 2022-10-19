@@ -2,6 +2,7 @@
 from parser import Parser
 
 # built-in
+import logging
 import argparse, os
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
@@ -71,6 +72,7 @@ class CompilationEngine():
         self.execute_compilation()
 
     def create_tokens(self) -> list:
+        logging.info('Creating Syntax tokens!')
         return [SyntaxToken(tag.tag, tag.text) for tag in self.xml_tree.iter() if tag.tag != 'tokens']
 
     def has_more_tokens(self):
@@ -127,7 +129,7 @@ class CompilationEngine():
         rule: 
     '''
     def compile_class(self):
-        ##print('entered compile_class_statement compilation')
+        logging.info('Entered compile_class_statement compilation')
         class_dec =  [
             SyntaxToken(type='tag_start',value='class'),
             self.compare_token(self.advance(),[SyntaxToken(type='keyword',value='class')]),
@@ -746,6 +748,7 @@ class CompilationEngine():
                 yield x
 
     def execute_compilation(self):
+        logging.info('Started compilation engine!')
         class_statments = self.compile_class()
         #print(class_statments)
         flattened_statements = [self.return_xml_tag(syntax_token) for syntax_token in flatten_list(class_statments)]

@@ -1,0 +1,158 @@
+General rule for outputing array expression is:
+    1. Start with right side of expression
+    2. If array is present, push expression inside brackets
+        2.1 push expression         // calculates expression
+            2.1.1 if array is complex (ie. still inside same array block, a[a[b[2]]]) omit expression in recursion, since top most value will be result of array indexing
+        2.2 push arrayBaseAddress   // variable containing base address
+        2.3 add                     // adds up base array address and offset
+        2.4 pop pointer 1           // that = base address of array + offset
+        2.5 push / pop that 0       // based on arrayAssignment (pop) / arrayType (push), so it's possible to eval expressions inside brackets
+
+
+Example:
+    // let a[2] = a[1] + 7;
+    push constant 1 // expression -> [1]
+    push local 0    // a
+    add             // base address a + [1]
+    pop pointer 1   // that = base address a + [1]
+    push that 0     // return a[1]
+    push constant 7 // 7
+    add             // a[1] + 7
+    push constant 2 // expression -> [2]
+    push local 0    // a
+    add             // base address a + [2]
+    pop pointer 1   // that = base address a + [2]
+    pop that 0      // that 0 = a[2]
+
+Example2:
+    // assuming a[1] = 5
+    // Evaluating: let a[2] = a[a[1]] + 7;
+    // construct a[1] = 5
+    push constant 5 // expression -> 5
+    push constant 1 // expression -> [1]
+    push local 0    // a
+    add             // base address a + 5 offset
+    pop pointer 1   // that = base address a + 5
+    pop that 0      // that 0 -> a[1] = 5
+    // constructs a[a[1]]
+    push constant 1 // expression -> [1]
+    push local 0    // a
+    add             // base address a + 1
+    pop pointer 1   // that = base address a + 1
+    push that 0     // return that[0]=a[1]
+    push local 0    // a
+    add             // base address a + a[1]
+    pop pointer 1   // that = base address a + a[1]
+    push that 0     // return that[0]=a[a[1]]
+    push constant 7 // 7
+    add             // expression: a[a[1]] + 7
+    push constant 2 // expression -> [2]
+    push local 0    // a
+    add             // base address a + [2]
+    pop pointer 1   // that = base address a + [2]
+    pop that 0      // that 0 = a[2]
+
+Example3:
+    //Full code of function
+    function Main.main 2
+    // creates array a
+    push constant 5
+    call Array.new 1
+    // stores array base address into local 0
+    pop local 0
+    // assuming a[1] = 3
+    // Evaluating: let a[2] = a[a[1]] + 7;
+    // construct a[0] = 1
+    push constant 1 // expression -> 1
+    push constant 0 // expression -> [1]
+    push local 0    // a
+    add             // base address a + 5 offset
+    pop pointer 1   // that = base address a + 5
+    pop that 0      // that 0 -> a[1] = 3
+    // construct a[1] = 2
+    push constant 2 // expression -> 1
+    push constant 1 // expression -> [1]
+    push local 0    // a
+    add             // base address a + 5 offset
+    pop pointer 1   // that = base address a + 5
+    pop that 0      // that 0 -> a[1] = 3
+    // construct a[2] = 3
+    push constant 3 // expression -> 1
+    push constant 2 // expression -> [1]
+    push local 0    // a
+    add             // base address a + 5 offset
+    pop pointer 1   // that = base address a + 5
+    pop that 0      // that 0 -> a[1] = 3
+    // construct a[3] = 4
+    push constant 4 // expression -> 1
+    push constant 3 // expression -> [1]
+    push local 0    // a
+    add             // base address a + 5 offset
+    pop pointer 1   // that = base address a + 5
+    pop that 0      // that 0 -> a[1] = 3
+    // let a[4] = a[3]+a[2]
+    // a[3]
+    push constant 3 // expression -> 3
+    push local 0    // a
+    add             // base address a + 5 offset
+    pop pointer 1   // that = base address a + 5
+    push that 0      // that 0 -> a[3] = 10
+    // a[2]
+    push constant 2 // expression -> 3
+    push local 0    // a
+    add             // base address a + 5 offset
+    pop pointer 1   // that = base address a + 5
+    push that 0      // that 0 -> a[3] = 10
+    // a[3]+a[2]
+    add
+    // a[4] <-
+    push constant 4 // expression -> 3
+    push local 0    // a
+    add             // base address a + 5 offset
+    pop pointer 1   // that = base address a + 5
+    pop that 0      // that 0 -> a[4] = 3 + 4
+
+Example4:
+    //let a[a[0]+1] = 5*3;  // b[2] = 5
+    push constant 5         // 5
+    push constant 3         // 3
+    call Math.multiply 2    // 5*3
+    push constant 0         // [0]
+    push constant 1         // 1
+    add                     // a[0]+1
+    push local 0            // base address a
+    add                     // a[a[0]+1]
+    push pointer 1          // that = a[a[0]+1] RAM offset
+    pop that 0              // *that = 15
+
+Example4.1 - Full code:
+    function Main.main 1
+    // Entered let statement
+    push constant 5
+    call Array.new 1
+    pop local 0
+    // Entered let statement
+    // Array assignment
+    push constant 1
+    push local 0
+    push constant 0
+    add
+    pop pointer 1
+    pop that 0
+    //let a[a[0]+1] = 5*3;  // b[2] = 5
+    push constant 5         // 5
+    push constant 3         // 3
+    call Math.multiply 2    // 5*3
+    //a[0]
+    push constant 0         // [0]
+    push local 0            // base address a
+    add                     // a[0]
+    pop pointer 1           // that = a[0]
+    push that 0             // *SP = *that
+    push constant 1         // 1
+    add                     // a[0]+1
+    // assign to a[offset]
+    push local 0            // base address a
+    add                     // a[a[0]+1]
+    pop pointer 1           // that = a[a[0]+1] RAM offset
+    pop that 0              // *that = 15
