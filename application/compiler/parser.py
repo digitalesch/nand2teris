@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 
-from yaml import parse
+#from yaml import parse
 from lexical_tokenizer import LexicalTokenizer, MismatchedValueError
 import xml.etree.ElementTree as ET
 import argparse, os

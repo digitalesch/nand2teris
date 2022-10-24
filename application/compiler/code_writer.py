@@ -125,11 +125,13 @@ class CodeWriter():
                     t.append(operation[0])
                 # other expressions
                 else:
+                    # erro em recursão
+                    logging.debug(f"Expression is: {expression}")
                     logging.debug(f"First expression: {expression[0:expression_index]}")
                     t.append(self.postfix_expression(expression[0:expression_index]))
                     # provides context for exp1 op exp2, when not found, it's op exp
                     t.append(self.postfix_expression(expression[expression_index+1:]))
-                    logging.debug(f"Second expression: {expression[expression_index:]}")
+                    logging.debug(f"Second expression: {expression[expression_index+1:]}")
                     t.append(expression[expression_index])
                     #t.append(operation[0])
                     
@@ -153,14 +155,15 @@ class CodeWriter():
                     t.append(self.postfix_expression(expression[0]))                    
                 assignment = list(filter(lambda x: isinstance(x,VMCommand),[self.compare_command(term,[VMCommand(type='assignVariable')]) for term in expression if isinstance(term,VMCommand)]))
                 if assignment:
-                    logging.debug(f"Postfixing arrayType {expression}")
+                    logging.debug(f"Postfixing assignment {expression}")
                     print(f'asign: {assignment} {expression}')
                     t.append(VMCommand(type=assignment[0].type,value=assignment[0].value))
                     t.append(self.postfix_expression(expression[1:]))
                 array_type = list(filter(lambda x: isinstance(x,VMCommand),[self.compare_command(term,[VMCommand(type='arrayType'),VMCommand(type='arrayAssignment')]) for term in expression if isinstance(term,VMCommand)]))
                 if array_type:
-                    logging.debug(f"Postfixing arrayType {expression}")
+                    logging.debug(f"Postfixing arrayType {expression[1:]}")
                     t.append(self.postfix_expression(expression[1:]))
+                    logging.debug(f"Appending arrayType {VMCommand(type=array_type[0].type,value=array_type[0].value)}")
                     t.append(VMCommand(type=array_type[0].type,value=array_type[0].value))
                 if len(expression) > 1 and not function and not assignment and not array_type:
                     for item in expression:

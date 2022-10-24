@@ -671,7 +671,7 @@ class CompilationEngine():
         if current_token.value == '(':
             # appends current token only
             SyntaxToken(type='tag_end',value='subroutineCallName'),
-            subroutine_call.append(SyntaxToken(type='tag_end',value='subroutineCall'))
+            #subroutine_call.append(SyntaxToken(type='tag_end',value='subroutineCall'))
             subroutine_call.append(current_token)
         # second rule
         if current_token.value == '.':
@@ -680,7 +680,7 @@ class CompilationEngine():
                 current_token,
                 self.compare_token(self.advance(),[SyntaxToken(type='identifier')]),
                 SyntaxToken(type='tag_end',value='subroutineCallName'),
-                SyntaxToken(type='tag_end',value='subroutineCall'),
+                #SyntaxToken(type='tag_end',value='subroutineCall'),
                 self.compare_token(self.advance(),[SyntaxToken(value='(')]),
             ]
 
@@ -694,6 +694,7 @@ class CompilationEngine():
         subroutine_call.insert(subroutine_call.index(SyntaxToken(type='tag_end',value='subroutineCallName'))+1,number_params)
         subroutine_call.append(SyntaxToken(type='tag_end',value='expressionList'))
         subroutine_call.append(self.compare_token(self.advance(),[SyntaxToken(type='symbol',value=')')]))
+        subroutine_call.append(SyntaxToken(type='tag_end',value='subroutineCall'))
         #print(subroutine_call)
         return subroutine_call
 

@@ -64,40 +64,46 @@ class CodeWriter():
     def write_expression(self, expression: ET, type: str = None) -> list:
         vm_commands = []
         
-        #print(f'E: {expression}')
         if expression:
+            logging.debug(f'Writing expression: {expression}')
             for child in expression:
-                #print(f'aaa:{expression}, {child}')
-                if child.tag in ['expression','expressionList']:
+                #logging.debug(f'Child:{child} {child.text}')
+                if child.tag in ['expression','expressionList','subroutineCall']:
+                    logging.debug(f'Recursion {child.tag}')
                     vm_commands.append(self.write_expression(child))
                 if child.tag in ['identifier']:
                     #print(child.tag,child.text)
                     if type not in ['assignVariable','assignVariableName']:
                         vm_commands.append(VMCommand('variable',child.text))
+                        logging.debug(f"Appending {VMCommand('variable',child.text)}")
                     if type in ['assignVariable','assignVariableName']:
                         vm_commands.append(VMCommand('assignVariable',child.text))
+                        logging.debug(f"Appending {VMCommand('assignVariable',child.text)}")
                     if type in ['arrayAssignment']:
                         vm_commands.append(VMCommand('arrayAssignment',child.text))
-                    #vm_commands.append(VMCommand('variable' if type not in ['assignVariable','assignVariableName'] else 'assignVariable',child.text))                    
+                        logging.debug(f"Appending {VMCommand('arrayAssignment',child.text)}")
                 if child.tag in ['keyword']:
                     vm_commands.append(VMCommand('keyword',child.text))
+                    logging.debug(f"Appending {VMCommand('keyword',child.text)}")
                 if child.tag in ['integerConstant']:
                     vm_commands.append(VMCommand('constant',child.text))
+                    logging.debug(f"Appending {VMCommand('constant',child.text)}")
                 if child.tag in ['operation','unaryOperation','stringConstant']:
                     vm_commands.append(VMCommand(child.tag,child.text))
-                if child.tag in ['subroutineCall']:
-                    vm_commands.append(self.write_expression(child))                    
+                    logging.debug(f"Appending {VMCommand(child.tag,child.text)}")
                 if child.tag in ['subroutineCallName']:
                     subroutine_call_values = [subroutine_call_name.text for subroutine_call_name in child]
                     # gets different value if its a built-in
+                    logging.debug(f"Appending {VMCommand('function' if subroutine_call_values[0] not in ['Math','Array','Sys','Output', 'Memory'] else 'systemFunction',''.join(subroutine_call_values))}")
                     vm_commands.append(VMCommand('function' if subroutine_call_values[0] not in ['Math','Array','Sys','Output', 'Memory'] else 'systemFunction',''.join(subroutine_call_values)))
                 if child.tag in ['arrayType']:
                     logging.debug('Array type expression')
                     vm_commands.append(VMCommand('arrayType',child.find('identifier').text))
+                    logging.debug(f"Appending {VMCommand('arrayType',child.find('identifier').text)}")
                     vm_commands.append(self.write_expression(child.find('expression')))
                 if child.tag in ['numberParameters']:
                     vm_commands.append(VMCommand('numberParameters',child.text))
-        #print(f'returned commands: {vm_commands}')
+                    logging.debug(f"Appending {VMCommand('numberParameters',child.text)}")
         return vm_commands
 
     '''
@@ -110,9 +116,9 @@ class CodeWriter():
     def postfix_expression(self,expression):        
         t = []
         ##print(t)
-        
+        logging.debug('Started postfixing')
         if isinstance(expression,list):
-            ##print('recursion')
+            #print('recursion')
             operation = list(filter(lambda x: isinstance(x,VMCommand),[self.compare_command(term,[VMCommand(type='operation'),VMCommand(type='unaryOperation')]) for term in expression if isinstance(term,VMCommand)]))
             if operation:
                 logging.debug(f'Operation found at {expression.index(operation[0])}')
@@ -123,51 +129,61 @@ class CodeWriter():
                     logging.debug('Entered unaryOp')
                     t.append(self.postfix_expression(expression[1]))
                     t.append(operation[0])
+                    return t
                 # other expressions
                 else:
+                    logging.debug(f"Expression is: {expression}")
                     logging.debug(f"First expression: {expression[0:expression_index]}")
                     t.append(self.postfix_expression(expression[0:expression_index]))
                     # provides context for exp1 op exp2, when not found, it's op exp
+                    logging.debug(f"Second expression: {expression[expression_index+1:]}")
                     t.append(self.postfix_expression(expression[expression_index+1:]))
-                    logging.debug(f"Second expression: {expression[expression_index:]}")
                     t.append(expression[expression_index])
-                    #t.append(operation[0])
-                    
+                    return t
             # no operation is found
             else:
                 # consant
                 logging.debug('No operation found')
                 if len(expression) == 1:
                     if isinstance(expression[0],VMCommand):
-                        if expression[0].type in ['constant','variable','keyword','stringConstant']:
-                            t.append(self.postfix_expression(expression[0]))
+                        #print('constant')
+                        if expression[0].type in ['constant','variable','keyword','stringConstant','arrayType']:
+                            logging.debug(f"Constant: {self.postfix_expression(expression[0])}")
+                            #return t.append(self.postfix_expression(expression[0]))
+                            return self.postfix_expression(expression[0])
                     else:
-                        #print(f'aa:{expression}')
-                        t.append(self.postfix_expression(expression[0]))
+                        logging.debug(f"Appending stuff: {expression[0]}")
+                        #return t.append(self.postfix_expression(expression[0])) 
+                        return self.postfix_expression(expression[0])
+                #else:
                 function = list(filter(lambda x: isinstance(x,VMCommand),[self.compare_command(term,[VMCommand(type='function'),VMCommand(type='systemFunction')]) for term in flatten_list(expression) if isinstance(term,VMCommand)]))
                 if function:
-                    #print(f'x: {function}')
+                    logging.debug(f'Function: {function}, params: {expression[1:]}')
                     for param_list in expression[1:]:
-                        #print(f'params: {param_list}')
+                        #if param_list.type != 'numberParameters':
+                        logging.debug(f'param: {param_list}')
                         t.append(self.postfix_expression(param_list))
-                    t.append(self.postfix_expression(expression[0]))                    
+                    t.append(self.postfix_expression(expression[0]))
+                    return t
                 assignment = list(filter(lambda x: isinstance(x,VMCommand),[self.compare_command(term,[VMCommand(type='assignVariable')]) for term in expression if isinstance(term,VMCommand)]))
                 if assignment:
-                    logging.debug(f"Postfixing arrayType {expression}")
-                    print(f'asign: {assignment} {expression}')
+                    logging.debug(f"Postfixing assignment {expression}")
+                    #print(f'asign: {assignment} {expression}')
                     t.append(VMCommand(type=assignment[0].type,value=assignment[0].value))
                     t.append(self.postfix_expression(expression[1:]))
+                    return t
                 array_type = list(filter(lambda x: isinstance(x,VMCommand),[self.compare_command(term,[VMCommand(type='arrayType'),VMCommand(type='arrayAssignment')]) for term in expression if isinstance(term,VMCommand)]))
                 if array_type:
                     logging.debug(f"Postfixing arrayType {expression}")
+                    logging.debug(f"arrayType expression {self.postfix_expression(expression[1:])}")
                     t.append(self.postfix_expression(expression[1:]))
+                    logging.debug(f"arrayType {VMCommand(type=array_type[0].type,value=array_type[0].value)}")
                     t.append(VMCommand(type=array_type[0].type,value=array_type[0].value))
-                if len(expression) > 1 and not function and not assignment and not array_type:
-                    for item in expression:
-                        t.append(self.postfix_expression(item))
+                    return t
         else:
-            #print(f'constant: {expression}')
+            logging.debug(f'else: {expression}')
             t.append(expression)
+            #return t
 
         return t
 
@@ -186,11 +202,77 @@ class CodeWriter():
         else:
             return False
 
+    def new_postfix(self, expression: list) -> list:
+        postfixed_expression = []
+        print(expression)
+        if isinstance(expression,list):
+            if len(expression)==1:
+                if isinstance(expression[0],VMCommand):
+                    return expression[0]
+                else:
+                    return self.new_postfix(expression[0])
+            else:
+                operation = list(filter(lambda x: isinstance(x,VMCommand),[self.compare_command(term,[VMCommand(type='operation'),VMCommand(type='unaryOperation')]) for term in expression if isinstance(term,VMCommand)]))
+                if operation:
+                    print(operation)
+                    # get expression index in list
+                    expression_index = expression.index(operation[0])
+                    # unaryOp
+                    if expression_index==0:
+                        # postfixes expression
+                        postfixed_expression.append(self.new_postfix(expression[1]))
+                        # postfixes operand
+                        postfixed_expression.append(operation[0])
+
+                        return postfixed_expression
+                    # other expressions
+                    else:
+                        # gets first expression till operand
+                        postfixed_expression.append(self.new_postfix(expression[0:expression_index]))
+                        # gets second expression from operand index + 1 till end of list
+                        postfixed_expression.append(self.new_postfix(expression[expression_index+1:]))
+                        # gets operand
+                        postfixed_expression.append(expression[expression_index])
+
+                        return postfixed_expression
+                array_type = list(filter(lambda x: isinstance(x,VMCommand),[self.compare_command(term,[VMCommand(type='arrayType'),VMCommand(type='arrayAssignment')]) for term in expression if isinstance(term,VMCommand)]))
+                if array_type:
+                    postfixed_expression.append(self.new_postfix(expression[1:]))
+                    postfixed_expression.append(VMCommand(type=array_type[0].type,value=array_type[0].value))
+                    return postfixed_expression
+                function = list(filter(lambda x: isinstance(x,VMCommand),[self.compare_command(term,[VMCommand(type='function'),VMCommand(type='systemFunction')]) for term in expression if isinstance(term,VMCommand)]))
+                if function:
+                    print(f'e: {expression}')
+                    # parameters
+                    postfixed_expression.append(self.new_postfix(expression[2]))
+                    # numberParameters
+                    postfixed_expression.append(self.new_postfix(expression[1]))
+                    # function
+                    postfixed_expression.append(self.new_postfix(expression[0]))
+                    return postfixed_expression
+                assignment = list(filter(lambda x: isinstance(x,VMCommand),[self.compare_command(term,[VMCommand(type='assignVariable')]) for term in expression if isinstance(term,VMCommand)]))
+                if assignment:
+                    postfixed_expression.append(self.postfix_expression(expression[1:]))
+                    postfixed_expression.append(VMCommand(type=assignment[0].type,value=assignment[0].value))
+                    return postfixed_expression                    
+                if all([not function,not array_type, not operation, not assignment]):
+                    for param in expression:
+                        postfixed_expression.append(self.new_postfix(param))
+
+                    return postfixed_expression
+
+
+                
+        else:
+            postfixed_expression.append(expression)    
+
+        return postfixed_expression
+
     '''
         returns compiled expression
     '''
     def treat_compiled_expression(self, statement: ET, tag: str=None):
-        print(f'treat: {tag,self.write_expression(statement.find(tag),tag)},{self.postfix_expression(self.write_expression(statement.find(tag),tag))}')
+        logging.debug(f"Treating compiled expression: {self.write_expression(statement.find(tag),tag)}")
         if tag is None:
             return self.postfix_expression(self.write_expression(statement))
         else:
@@ -224,10 +306,13 @@ class CodeWriter():
         if statement.tag == 'letStatement':
             expression_vm_commands.append(VMCommand(type='literal',value='// Entered let statement'))
             array_assignment = statement.find('arrayAssignment')
+            #print(array_assignment)
             if array_assignment:
                 expression_vm_commands.append(VMCommand(type='literal',value='// Array assignment'))
                 logging.debug('entered array assignment')
+                #print(self.write_expression(array_assignment,'assignVariableName'),self.postfix_expression(self.write_expression(array_assignment.find('assignVariableName'),'assignVariableName')))
                 arrayVariable = self.treat_compiled_expression(array_assignment,'assignVariableName')[0]
+                #print(arrayVariable)
                 logging.debug(f'assignment {arrayVariable}')
                 logging.debug(f"Expression inside arrayAssignment {self.write_expression(array_assignment.find('expression'),'expression')}")
                 logging.debug(f"Array expression {self.treat_compiled_expression(array_assignment,'expression')}")
@@ -241,13 +326,11 @@ class CodeWriter():
                     VMCommand(type='literal',value='pop pointer 1'),
                     VMCommand(type='literal',value='pop that 0'),
                 ]
-                logging.debug(f'expression {expression_vm_commands}')
-                #print(expression_vm_commands)
+                logging.debug(f'expression {expression_vm_commands}')                
             else:
-                ##print(statement.find('expression'),self.write_expression(statement.find('expression'),'expression'))
                 expression_vm_commands += self.treat_compiled_expression(statement,'expression')
+                logging.debug(f'Compiled expression: {expression_vm_commands}')
                 # assigns to variable
-                #print(statement,statement.find('assignVariable'),self.write_expression(statement.find('assignVariable'),'assignVariableName'))
                 expression_vm_commands += self.treat_compiled_expression(statement.find('assignVariable'),'assignVariableName')
                 
         if statement.tag == 'ifStatement':
@@ -310,13 +393,199 @@ class CodeWriter():
             for file in os.listdir(file_path):
                 if file.endswith(".jack"):
                     CompilationEngine(os.path.join(file_path,file))
+
+    '''
+    
+    '''
+    def create_class_symbol_table(self, syntax_tree: ET):
+        for class_var_declaration in syntax_tree.iterfind('classVarDec'):
+            tmp = []
+            for var_type in class_var_declaration:
+                # adds to dict since its type or kind
+                if var_type.tag == 'keyword':
+                    # kind and type variables
+                    tmp.append(var_type.text)
+                if var_type.tag == 'classVarDecList':
+                    # inside classVarDecList is possible identifiers (1 or more) names, like "static int x,y;"
+                    for var_name in var_type.iter():
+                        if var_name.tag == 'identifier':
+                            self.update_symbol_table('class',var_name.text,tmp[1],tmp[0])
+
+
+    '''
+        creates subroutine symbol table
+    '''
+    def create_subroutine_symbol_table(self, subroutine_declaration: ET):
+        tmp_param = []
+
+        subroutine_type = subroutine_declaration.find('keyword').text
+        subroutine_name = subroutine_declaration.find('subroutineName').find('identifier').text
+        #print(f"Running '{subroutine_name}' function of type {subroutine_type}!")
+        self.symbol_tables['function'].define(subroutine_name,subroutine_type,'local')
+
+        self.symbol_tables['subroutine'].start_subroutine(self.class_name,subroutine_type)
+        
+        # creates parameters as a list, since comma separates them, ex: "int a, int b" -> ['int', 'a', 'int', 'b']
+        for parameter in subroutine_declaration.find('parameterList'):
+            if parameter.tag != 'symbol':
+                tmp_param.append(parameter.text)
+        # writes parameters to symbol table
+        if len(tmp_param):
+            # rewrites tmp_param, since its appended as <type> <param_name>, ex: int x
+            for key, value in {tmp_param[i*2+1]:tmp_param[i*2] for i in range(int(len(tmp_param)/2))}.items():
+                # updates the symbol table, since values are of dict type with values {'<variable_name>': '<variable_type'>} -> {'a': 'int', 'b': 'int'}
+                self.symbol_tables['subroutine'].define(symbol_name=key, symbol_type=value, symbol_kind='argument')
+                    
+        # aggregates all local variables into a list
+        all_local_var = []
+        for variable_declaration in subroutine_declaration.find('subroutineBody').find('subroutineVarDec'):
+            # if local variable, by tab varDec exists, append to all_local_var
+            if variable_declaration:
+                # temporary list for containing each individual var set, ex: "var int length, teste; var char t;" -> [['var', 'int', 'length', 'teste'], ['var', 'char', 't']]
+                tmp_local_var = []
+                for local_variable in variable_declaration:
+                    if local_variable.tag != 'symbol':
+                        tmp_local_var.append(local_variable.text)
+                all_local_var.append(tmp_local_var)
+        
+        # writes parameters to subroutine symbol table
+        for local_variable_declaration in all_local_var:
+            # two first elements have "var" keyword and type of varialbe, rest of list has variable names
+            for local_variable_name in local_variable_declaration[2::]:
+                self.symbol_tables['subroutine'].define(symbol_name=local_variable_name, symbol_type=local_variable_declaration[1], symbol_kind='local')
+
+        return (subroutine_name, subroutine_type)
+
+    '''
+
+    '''
+    def teste(self, subroutine_declaration: ET) -> list:
+        # writes expressions
+        vm_commands = []
+
+        for statements_declaration in subroutine_declaration.find('subroutineBody').find('statements'):
+                vm_commands += self.treat_statement(statements_declaration)
+
+        return vm_commands
+
+    '''
+        writes VM Commands based on the postifex
+    '''
+    def write_vm_commands(self, subroutine_specs: tuple, subroutine_declaration: ET):
+        vm_commands = []
+        
+        # adds function VM code
+        function_local_vars = self.symbol_tables['subroutine'].find_type('local')
+        vm_commands.append(VMCommand(type='literal',value=f'function {self.class_name}.{subroutine_specs[0]} {len(function_local_vars)}'))
+
+        # adds constructor specific VM code
+        if subroutine_specs[1] == 'constructor':
+            ##print(f'initializing constructor code for class {class_name}!')
+            fields = [value for key, value in self.symbol_tables['class'].symbol_table.items() if value['kind']=='field']
+            ##print(fields)
+            vm_commands += [
+                VMCommand(type='literal', value=f'push constant {len(fields)}'),
+                VMCommand(type='literal', value=f'call Memory.alloc 1'),
+                VMCommand(type='literal', value=f'pop pointer 0'),
+            ]            
+        # adds method specific VM code
+        if subroutine_specs[1] == 'method':
+            # push argument 0 (this) base value and replace with pointer
+            vm_commands += [
+                VMCommand(type='literal', value=f'push argument 0'),
+                VMCommand(type='literal', value=f'pop pointer 0'),
+            ]
+
+        vm_commands = self.teste(subroutine_declaration)
+
+        procedural_commands = []
+        
+        for item in vm_commands:
+            ##print(item)
+            if item.type == 'literal':
+                procedural_commands.append(item.value)
+            if item.type in ['constant']:
+                procedural_commands.append(f'push constant {item.value}')
+            # gets variable index from symbol table
+            if item.type in ['variable','assignVariable','arrayAssignment']:
+                #print(item)
+                found_symbol = self.search_symbol_table(item.value)
+                procedural_commands.append(f"{'push' if item.type in ['variable','arrayAssignment','arrayType'] else 'pop'} {found_symbol[1]['kind'] if found_symbol[1]['kind'] != 'field' else 'this'} {found_symbol[1]['index']}")
+            if item.type in ['arrayType']:
+                logging.debug('entered arrayType')
+                found_symbol = self.search_symbol_table(item.value)
+                procedural_commands.append('// Entered arrayType')
+                procedural_commands.append(f"push {found_symbol[1]['kind'] if found_symbol[1]['kind'] != 'field' else 'this'} {found_symbol[1]['index']}")
+                procedural_commands.append("add")
+                procedural_commands.append("pop pointer 1")
+                procedural_commands.append("push that 0")
+            if item.type == 'operation':
+                operation_transalate = {
+                    '=':'eq',
+                    '~':'not',
+                    '+':'add',
+                    '-':'sub',
+                    '*':'call Math.multiply 2',
+                    '/':'call Math.divide 2',
+                    '>':'gt',
+                    '<':'lt',
+                    '&':'and',
+                    '|':'or',
+                }
+                procedural_commands.append(f'{operation_transalate[item.value]}')                    
+
+            # compiles this / that
+            if item.type == 'keyword':
+                #print(item)
+                if item.value in ['true','false','null']:
+                    procedural_commands.append(f"push constant 0")
+                    if item.value == 'true':
+                        procedural_commands.append(f"not")
+                else:
+                    procedural_commands.append(f"push pointer {0 if item.value == 'this' else 1}")
+            
+            if item.type in ['function','systemFunction']:
+                ##print(item,tmp_param)
+                procedural_commands.append(f"call {item.value} {number_params.value}")
+                #procedural_commands.append(f"call {item.value}")
+
+            # compiles this / that
+            if item.type == 'numberParameters':
+                number_params = item
+                #print(item)
+
+            if item.type == 'ifgoto':
+                procedural_commands.append(f"if-goto {item.value}")
+            
+            if item.type == 'goto':
+                procedural_commands.append(f"goto {item.value}")
+
+            if item.type == 'label':
+                procedural_commands.append(f"label {item.value}")
+
+            if item.type == 'unaryOperation':
+                operation_transalate = {
+                    '~':'not',
+                    '-':'neg',
+                }
+                procedural_commands.append(f'{operation_transalate[item.value]}')
+
+            if item.type == 'stringConstant':
+                procedural_commands.append('// adding stringConstant creation')
+                procedural_commands.append(f'push constant {len(item.value)}')
+                procedural_commands.append('call String.new 1')
+                for i in range(len(item.value)):
+                    procedural_commands.append(f'push constant {ord(item.value[i])}')
+                    procedural_commands.append('call String.appendChar 2')
+
+        return procedural_commands
     
 def main():
     arguments_list = [
         {'name':'file_path','type':str,'help':'specifies the file / directory to be read'}
     ]
-
-    logging.basicConfig(filename=f"{os.path.join(os.path.realpath(os.path.dirname(__file__)),'code_writer.log')}", filemode='w', level=logging.DEBUG)
+    print(f"{os.path.join(os.getcwd(),sys.argv[1],'vm_commands.log')}")
+    logging.basicConfig(filename=f"{os.path.join(os.getcwd(),sys.argv[1],'vm_commands.log')}", filemode='w', level=logging.DEBUG)
     logging.info('Started code!')
     parser = argparse.ArgumentParser()
 
@@ -339,30 +608,21 @@ def main():
                 CompilationEngine(os.path.join(args.file_path,file))
                 processed_files.append(os.path.join(args.file_path,file))
 
+    procedural_commands = []
+
     for file in processed_files:
         file_path, file_full_name = os.path.split(file)
         file_name, file_extension = file_full_name.split('.')
         xml_tree = ET.parse(f"{os.path.join(os.getcwd(),file_path,file_name+'Syntax.xml')}")
         # update class variable table, by using "classVarDec" and "classVarDecList" tag
         class_name = [tag.text for tag in xml_tree.find('className')][0]
-        #print(f'Compiling {class_name}!')
+        print(f'Compiling {class_name}!')
+        logging.info(f'Compiling {class_name}!')
 
-        procedural_commands = []
 
         cw = CodeWriter(class_name)
         
-        for class_var_declaration in xml_tree.iterfind('classVarDec'):
-            tmp = []
-            for var_type in class_var_declaration:
-                # adds to dict since its type or kind
-                if var_type.tag == 'keyword':
-                    # kind and type variables
-                    tmp.append(var_type.text)
-                if var_type.tag == 'classVarDecList':
-                    # inside classVarDecList is possible identifiers (1 or more) names, like "static int x,y;"
-                    for var_name in var_type.iter():
-                        if var_name.tag == 'identifier':
-                            cw.update_symbol_table('class',var_name.text,tmp[1],tmp[0])
+        cw.create_class_symbol_table(xml_tree)
 
         # checks for subroutines
         for subroutine_declaration in xml_tree.iterfind('subroutineDec'):
@@ -371,7 +631,6 @@ def main():
 
             subroutine_type = subroutine_declaration.find('keyword').text
             subroutine_name = subroutine_declaration.find('subroutineName').find('identifier').text
-            #print(f"Running '{subroutine_name}' function of type {subroutine_type}!")
             cw.symbol_tables['function'].define(subroutine_name,subroutine_type,'local')
 
             cw.symbol_tables['subroutine'].start_subroutine(class_name,subroutine_type)
@@ -416,7 +675,6 @@ def main():
             if subroutine_type == 'constructor':
                 ##print(f'initializing constructor code for class {class_name}!')
                 fields = [value for key, value in cw.symbol_tables['class'].symbol_table.items() if value['kind']=='field']
-                ##print(fields)
                 vm_commands += [
                     VMCommand(type='literal', value=f'push constant {len(fields)}'),
                     VMCommand(type='literal', value=f'call Memory.alloc 1'),
@@ -429,30 +687,24 @@ def main():
                     VMCommand(type='literal', value=f'push argument 0'),
                     VMCommand(type='literal', value=f'pop pointer 0'),
                 ]
-            logging.debug('Initial VM Commands')
             
+            logging.debug('Initial VM Commands')            
             
             # writes expressions
             for statements_declaration in subroutine_declaration.find('subroutineBody').find('statements'):                
-                #print(statements_declaration)
                 vm_commands += cw.treat_statement(statements_declaration)
 
-            logging.debug(f"{[(cmd.type,cmd.value) for cmd in list(flatten_list(vm_commands))]}")
-            print(vm_commands)
+            logging.debug(f"Final VMCode: {[(cmd.type,cmd.value) for cmd in list(flatten_list(vm_commands))]}")
             
             postfix_commands = list(flatten_list(vm_commands))
-            #print(postfix_commands)    
-            ##print(cw.symbol_tables)
-
+            
             for item in postfix_commands:
-                ##print(item)
                 if item.type == 'literal':
                     procedural_commands.append(item.value)
                 if item.type in ['constant']:
                     procedural_commands.append(f'push constant {item.value}')
                 # gets variable index from symbol table
                 if item.type in ['variable','assignVariable','arrayAssignment']:
-                    #print(item)
                     found_symbol = cw.search_symbol_table(item.value)
                     procedural_commands.append(f"{'push' if item.type in ['variable','arrayAssignment','arrayType'] else 'pop'} {found_symbol[1]['kind'] if found_symbol[1]['kind'] != 'field' else 'this'} {found_symbol[1]['index']}")
                 if item.type in ['arrayType']:
@@ -479,9 +731,8 @@ def main():
                     procedural_commands.append(f'{operation_transalate[item.value]}')                    
 
                 # compiles this / that
-                if item.type == 'keyword':
-                    #print(item)
-                    if item.value in ['true','false']:
+                if item.type == 'keyword':                    
+                    if item.value in ['true','false','null']:
                         procedural_commands.append(f"push constant 0")
                         if item.value == 'true':
                             procedural_commands.append(f"not")
@@ -489,14 +740,11 @@ def main():
                         procedural_commands.append(f"push pointer {0 if item.value == 'this' else 1}")
                 
                 if item.type in ['function','systemFunction']:
-                    ##print(item,tmp_param)
-                    procedural_commands.append(f"call {item.value} {number_params.value}")
-                    #procedural_commands.append(f"call {item.value}")
+                    procedural_commands.append(f"call {item.value} {number_params.value}")                    
 
                 # compiles this / that
                 if item.type == 'numberParameters':
                     number_params = item
-                    #print(item)
 
                 if item.type == 'ifgoto':
                     procedural_commands.append(f"if-goto {item.value}")
@@ -515,21 +763,199 @@ def main():
                     procedural_commands.append(f'{operation_transalate[item.value]}')
 
                 if item.type == 'stringConstant':
-                    #print(f'aaa: {item.value}, {len(item.value)}')
                     procedural_commands.append('// adding stringConstant creation')
                     procedural_commands.append(f'push constant {len(item.value)}')
                     procedural_commands.append('call String.new 1')
                     for i in range(len(item.value)):
                         procedural_commands.append(f'push constant {ord(item.value[i])}')
                         procedural_commands.append('call String.appendChar 2')
-                
-
-
-            #print(f"End of '{subroutine_name}' compilation!")
-        
         with open(f"{os.path.join(os.getcwd(),file_path,file_name+'.vm')}",'w') as fp:
             fp.write('\n'.join(procedural_commands)+'\n')
-        #print(f"CodeWriter saved VM commands to {os.path.join(os.getcwd(),file_path,file_name+'.vm')}")        
+
+def teste():
+    xml_string = '''
+        <statements>
+            <letStatement>
+                <keyword>let</keyword>
+                <assignVariable>
+                    <assignVariableName>
+                        <identifier>a</identifier>
+                    </assignVariableName>
+                </assignVariable>
+                <symbol>=</symbol>
+                <expression>
+                    <symbol>(</symbol>
+                    <expression>
+                        <symbol>(</symbol>
+                        <expression>
+                            <integerConstant>7</integerConstant>
+                            <operation>-</operation>
+                            <arrayType>
+                                <identifier>a</identifier>
+                                <symbol>[</symbol>
+                                <expression>
+                                    <integerConstant>3</integerConstant>
+                                </expression>
+                                <symbol>]</symbol>
+                            </arrayType>
+                        </expression>
+                        <symbol>)</symbol>
+                        <operation>-</operation>
+                        <subroutineCall>
+                            <subroutineCallName>
+                                <identifier>Main</identifier>
+                                <symbol>.</symbol>
+                                <identifier>duble</identifier>
+                            </subroutineCallName>
+                            <numberParameters>1</numberParameters>
+                        </subroutineCall>
+                        <symbol>(</symbol>
+                        <expressionList>
+                            <expression>
+                                <integerConstant>2</integerConstant>
+                            </expression>
+                        </expressionList>
+                        <symbol>)</symbol>
+                    </expression>
+                    <symbol>)</symbol>
+                </expression>
+                <symbol>;</symbol>
+            </letStatement>
+        </statements>
+    '''
+
+    '''
+    root = ET.fromstring(xml_string)
+    cw = CodeWriter('Main')
+    cw.symbol_tables['class'].define('a','Array','field')
+
+    logging.basicConfig(filename=f"{os.path.join(os.getcwd(),sys.argv[1],'vm_commands.log')}", filemode='w', level=logging.DEBUG)
+    # writes expressions
+    vm_commands, t = [],[]
+    for statements_declaration in root:
+        #print(statements_declaration)
+        vm_commands += cw.treat_statement(statements_declaration)
+        t += cw.write_expression(statements_declaration)
+
+
+    logging.debug(f"Final VMCode: {[(cmd.type,cmd.value) for cmd in list(flatten_list(vm_commands))]}")
+
+    for item in vm_commands:
+        logging.debug(item)
+    '''
+    cw = CodeWriter('Main')
+
+    teste = [
+        #VMCommand(type='arrayType', value='b'),
+        [
+            [
+                [
+                    VMCommand(type='constant', value='7'), 
+                    VMCommand(type='operation', value='-'), 
+                    VMCommand(type='arrayType', value='a'), 
+                    [
+                        VMCommand(type='constant', value='3')
+                    ]
+                ], 
+                VMCommand(type='operation', value='-'), 
+                [
+                    VMCommand(type='function', value='Main.duble'), 
+                    VMCommand(type='numberParameters', value='1')
+                ],
+                [
+                    VMCommand(type='constant', value='2')
+                ]
+            ]
+        ], 
+        VMCommand(type='operation', value='+'), 
+        VMCommand(type='constant', value='1')
+    ]
+
+    teste = [
+        [
+            [
+                [
+                    VMCommand(type='function', value='Main.duble'), 
+                    VMCommand(type='numberParameters', value='1'),
+                    [
+                        [
+                            [
+                                [
+                                    VMCommand(type='function', value='Main.aaaa'), 
+                                    VMCommand(type='numberParameters', value='1'),
+                                    [
+                                        VMCommand(type='constant', value='5')
+                                    ]
+                                ]
+                            ]
+                        ]
+                    ],
+                ]
+            ]
+        ]
+    ] # ((Main.duble((5))))
+
+
+    teste  = [[VMCommand(type='systemFunction', value='Array.new'), VMCommand(type='numberParameters', value='1'), [[VMCommand(type='constant', value='10')]]]]
+    teste2 = [VMCommand(type='arrayType', value='a'), [VMCommand(type='arrayType', value='a'), [VMCommand(type='constant', value='5')]], VMCommand(type='operation', value='*'), VMCommand(type='arrayType', value='b'), [[[VMCommand(type='constant', value='7'), VMCommand(type='operation', value='-'), VMCommand(type='arrayType', value='a'), [VMCommand(type='constant', value='3')]], VMCommand(type='operation', value='-'), [VMCommand(type='function', value='Main.duble'), VMCommand(type='numberParameters', value='2'), [[VMCommand(type='constant', value='2')], [VMCommand(type='constant', value='5')]]]], VMCommand(type='operation', value='+'), VMCommand(type='constant', value='1')]]
+    teste3 = [[VMCommand(type='function', value='Main.duble'), VMCommand(type='numberParameters', value='1'), [[VMCommand(type='constant', value='5')]]], VMCommand(type='operation', value='+'), VMCommand(type='constant', value='1')]
+    teste4 = [VMCommand(type='arrayType', value='a'), [VMCommand(type='arrayType', value='a'), [VMCommand(type='constant', value='2')]], VMCommand(type='operation', value='*'), VMCommand(type='arrayType', value='b'), [[[VMCommand(type='constant', value='7'), VMCommand(type='operation', value='-'), VMCommand(type='arrayType', value='a'), [VMCommand(type='constant', value='3')]]]]]
+    teste5 = [[VMCommand(type='constant', value='7'), VMCommand(type='operation', value='-'), VMCommand(type='arrayType', value='a'), [VMCommand(type='constant', value='3')]]] # (7-a[3]) -> (7-5) = 2
+    teste6 = [VMCommand(type='arrayAssignment', value='a'), [VMCommand(type='constant', value='3')],[VMCommand(type='arrayType', value='b'),[VMCommand(type='constant', value='7'), VMCommand(type='operation', value='-'), VMCommand(type='arrayType', value='a'), [VMCommand(type='constant', value='3')]]]] # (7-a[3]) -> (7-5) = 2
+    
+    cw = CodeWriter('teste')
+    postfixed_statements = cw.new_postfix(teste6)
+
+    print(postfixed_statements)
+    print(list(flatten_list(postfixed_statements)))
+    cw.symbol_tables['subroutine'].define('a','Point','local')
+    cw.symbol_tables['subroutine'].define('b','Point','local')
+    cw.symbol_tables['subroutine'].define('c','int','local')
+
+    vm = [
+        '// starts main',
+        'function Main.main  3',
+        '// Creates array a',
+        'push constant 5',
+        'call Array.new 1',
+        'pop local 0',
+        '// Creates array b',
+        'push constant 2',
+        'call Array.new 1',
+        'pop local 1',
+        '// let c = 9',
+        'push constant 9',        
+        'pop local 2',
+        '// a[2] = 3',
+        'push constant 3',
+        'push local 0',
+        'push constant 2',
+        'add',
+        'pop pointer 1',
+        'pop that 0',
+        '// a[3] = 5',
+        'push constant 5',
+        'push local 0',
+        'push constant 3',
+        'add',
+        'pop pointer 1',
+        'pop that 0',
+        '// c = 8',
+        'push constant 8',
+        'push local 1',
+        'push constant 2',
+        'add',
+        'pop pointer 1',
+        'pop that 0',
+        '// starting function'
+    ]
+
+    final = vm + cw.write_vm_commands(flatten_list(postfixed_statements))
+    print(final)
+
+    with open(os.path.join(os.path.os.getcwd(),sys.argv[1],'Main.vm'),'w') as fp:
+        fp.write('\n'.join(final))
 
 if __name__ == '__main__':
     main()
+    #teste()
