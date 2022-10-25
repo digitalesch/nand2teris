@@ -670,9 +670,10 @@ class CompilationEngine():
         # first rule
         if current_token.value == '(':
             # appends current token only
-            SyntaxToken(type='tag_end',value='subroutineCallName'),
-            #subroutine_call.append(SyntaxToken(type='tag_end',value='subroutineCall'))
-            subroutine_call.append(current_token)
+            subroutine_call += [
+                SyntaxToken(type='tag_end',value='subroutineCallName'),
+                current_token
+            ]
         # second rule
         if current_token.value == '.':
             # appends current token and next identifier
@@ -691,6 +692,7 @@ class CompilationEngine():
         subroutine_call += expression_list
         # creates parameters tags, so its possible to know how many parameters are used
         number_params = SyntaxToken(type='numberParameters',value=f"{len([item for item in expression_list if item == SyntaxToken(type='symbol', value=',')])+1 if len(expression_list)>0 else 0}")
+        print(subroutine_call)
         subroutine_call.insert(subroutine_call.index(SyntaxToken(type='tag_end',value='subroutineCallName'))+1,number_params)
         subroutine_call.append(SyntaxToken(type='tag_end',value='expressionList'))
         subroutine_call.append(self.compare_token(self.advance(),[SyntaxToken(type='symbol',value=')')]))
