@@ -1,0 +1,216 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/12/Math.jack
+
+/**
+ * A library of commonly used mathematical functions.
+ * Note: Jack compilers implement multiplication and division using OS method calls.
+ */
+class Math {
+    static int pow_array;
+
+    /** Initializes the library. */
+    function void init() {
+        var int i, shiftedValue;
+        
+        let pow_array = 8000; // creates temporary array for 2's power values
+        let i = 1;
+        let shiftedValue = 1;
+        while (i<16) {
+            let pow_array[i] = shiftedValue;
+            let shiftedValue = shiftedValue + shiftedValue; // doubles value, 2**i
+            let i = i + 1;
+        }
+        let pow_array[16] = 32767; // last value of array for 2**15 bit value
+        return;
+    }
+
+    /** Returns the greater number. */
+    function int max(int a, int b) {
+        if (a > b) {
+            return a;
+        }
+        else {
+            return b;
+        }
+    }
+
+    /** Returns the smaller number. */
+    function int min(int a, int b) {
+        if (a < b) {
+            return a;
+        }
+        else {
+            return b;
+        }
+    }
+
+    /** Returns the absolute value of x. */
+    function int abs(int x) {
+        if (x > 0) {
+            return x;
+        }
+        else {
+            return -x;
+        }
+    }
+
+    /** Returns the product of x and y. 
+     *  When a Jack compiler detects the multiplication operator '*' in the 
+     *  program's code, it handles it by invoking this method. In other words,
+     *  the Jack expressions x*y and multiply(x,y) return the same value.
+     */
+    function int multiply(int x, int y) {
+        var int a, b, tmp, sum, shiftedX, bitwise_operator;
+        
+        // gets absolute value for both inputs
+        let a = Math.abs(x);
+        let b = Math.abs(y);
+
+        // optimization for when a call is made with (lower_number, biggest_number) is made, switching numbers to get least amount of iterations
+        if (a<b) {
+            let tmp = a;
+            let a = b;
+            let b = tmp;
+        }     
+        let sum = 0;
+        let shiftedX = a;
+        let bitwise_operator = 1;
+        while (bitwise_operator - 1 < b) {
+            if (bitwise_operator & b > 0) {                                         // gets the i'th bit of y, by using AND operation on binary -> 6 (110) AND 1 (001) = 0 (rightmost bit), 6 (110) AND 2 (010) = 1 (second rightmost bit)
+                let sum = sum + shiftedX;
+            }
+            let shiftedX = shiftedX + shiftedX;
+            let bitwise_operator = bitwise_operator + bitwise_operator;             // increments the bitwise operator, being
+        }
+
+        // check if eiter
+        
+        if ((x < 0 & y < 0)|(x > 0 & y > 0)) {
+            return sum;
+        }
+        else {
+            return -sum;
+        }
+    }
+
+    /** Returns the integer part of x/y.
+     *  When a Jack compiler detects the multiplication operator '/' in the 
+     *  program's code, it handles it by invoking this method. In other words,
+     *  the Jack expressions x/y and divide(x,y) return the same value.
+     */
+    function int divide(int x, int y) {
+        var int a,b,q, tmp;
+        
+        // gets absolute value for both inputs
+        let a = Math.abs(x);
+        let b = Math.abs(y);
+
+        if ((b > a) | (y < 0)) {
+            return 0;
+        }
+
+        // doubles y quocient
+        let q = Math.divide(a, b + b);
+        let tmp = Math.multiply(q, b);
+        if ((a - (tmp + tmp)) < b) {
+            if ((x < 0 & y < 0)|(x > 0 & y > 0)) {
+                return q + q;
+            }
+            else {
+                return -(q + q);
+            }
+        }
+        else {
+            if ((x < 0 & y < 0)|(x > 0 & y > 0)) {
+                return (q + q) + 1;
+            }
+            else {
+                return -((q + q) +1);
+            }
+        }
+    }
+
+    function int size(int value) {
+        var int i;
+
+        let i = 1;
+        
+        while (true) {
+            if (
+                ~(value < pow_array[i-1]) // value >= interval_start
+                &
+                ~(value > pow_array[i]) // value <= interval_end
+            ) {
+                return i-1;
+            }
+            else {
+                let i = i + 1;
+            }
+        }
+
+        return i;
+
+    }
+
+    /*
+        Returns the integer part of the square root of x. 
+        Pseudo:
+
+        sqrt(x):
+            y = 0
+            for j = n/2 -1 ... 0 do:
+                if (y+2**j)**2 <= x then y = y + 2**j
+            return y
+
+        
+    */
+    function int sqrt(int x) {
+        var int y, i, tmp, pow;
+
+        let y = 0;
+        let i = Math.size(x) - 1;
+        do Output.printInt(i);
+        while (~(i < 0)) {
+            let pow = Math.power(2,i);
+            do Output.printInt(pow);
+            let tmp = y + pow;
+            if (~(Math.power(tmp,2) > x) & (Math.power(tmp,2) > 0)) {
+                let y = y + pow;
+            }
+            let i = i - 1;
+        }        
+
+        return y;
+    }
+
+    function int sqrt2(int x) {
+        var int y, i, tmp, pow;
+
+        let y = 0;
+        let i = Math.divide(Math.size(x),2) + 1;
+        while (~(i < 0)) {
+            let tmp = Math.power(y + pow_array[i],2);
+            if (~(tmp > x) & (tmp > 0)) {
+                let y = y + pow_array[i];
+            }
+            let i = i - 1;
+        }        
+
+        return y;
+    }
+
+    function int power(int x, int power) {
+        var int i, res;
+
+        let i = power;
+        let res = 1;
+        while (i > 0) {
+            let res = Math.multiply(res, x);
+            let i = i - 1;
+        }
+
+        return res;
+    }
+}

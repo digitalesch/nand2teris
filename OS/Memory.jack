@@ -1,0 +1,105 @@
+// This file is part of www.nand2tetris.org
+// and the book "The Elements of Computing Systems"
+// by Nisan and Schocken, MIT Press.
+// File name: projects/12/Memory.jack
+
+/**
+ * This library provides two services: direct access to the computer's main
+ * memory (RAM), and allocation and recycling of memory blocks. The Hack RAM
+ * consists of 32,768 words, each holding a 16-bit binary number.
+ */ 
+class Memory {
+    static int ram, freeList, heapBase, free, endOfList;
+    
+    /** Initializes the class. */
+    function void init() {
+        let ram = 0;
+        let heapBase = 2048;            // sets base address of heap
+        let heapBase[0] = 2050;         // free list first pointer
+        let heapBase[1] = 16383;        // heapFinalAddress
+        let freeList = heapBase;        // gets first freeList item with whole heap
+        let endOfList = freeList;
+        return;
+    }
+
+    function int bestFit(int size) {
+        var int currentNode, minBlockAddress;
+        
+        let minBlockAddress = heapBase[0];
+        let currentNode = minBlockAddress;
+        //do Output.printInt(currentNode);
+        while (currentNode > 0) {
+            // checks if currentNode.size >= block size + 2
+            if (~(currentNode[1] < size + 2)) {
+                // tests for minimal block
+                //do Output.printInt(currentNode[1]);
+                if (currentNode[1] < minBlockAddress[1]) {
+                    let minBlockAddress = currentNode;
+                }
+            }
+            let currentNode = currentNode[0]; // currentNode = *currentNode.next
+            do Output.printInt(currentNode);
+        }
+        
+        return minBlockAddress;
+    }
+
+    /** Returns the RAM value at the given address. */
+    function int peek(int address) {
+        return ram[address];
+    }
+
+    /** Sets the RAM value at the given address to the given value. */
+    function void poke(int address, int value) {
+        let ram[address] = value;
+        return;
+    }
+
+    /** Finds an available RAM block of the given size and returns
+     *  a reference to its base address. */
+    // searches freeList for possbile match, else gets to end of freeList
+    function int alloc(int size) {
+        var int freeBlockAddress, currentNode, tmpPointer;
+        
+        let freeBlockAddress = Memory.bestFit(size);
+        let currentNode = freeList[0];
+        //do Output.printInt(freeBlockAddress);
+
+        if (freeBlockAddress = freeList[0]) {
+            let heapBase[0] = freeBlockAddress + (size + 2);
+            let heapBase[1] = heapBase[1] - (size + 2);
+            let freeBlockAddress[0] = 0;
+            let freeBlockAddress[1] = size;
+
+            let tmpPointer = freeList[0];
+            let tmpPointer[1] = freeList[1];
+        }
+        // update linked list
+        else {
+            while (~(currentNode[0] = freeBlockAddress)) {
+                let currentNode = currentNode[0];               // updates pointer to get reference to currentNode.next
+            }
+            let tmpPointer = currentNode[0];
+            let tmpPointer = tmpPointer[0];
+            //do Output.printInt(tmpPointer);
+            let currentNode[0] = tmpPointer;
+        }
+
+        return freeBlockAddress + 2;                           // returns the address for data portion of node, and ram[addr-1] has size, ram[add-2] has pointer
+    }
+
+    /** De-allocates the given object (cast as an array) by making
+     *  it available for future allocations. */
+    // appends block to freeList
+    function void deAlloc(Array object) {
+        var int tmpAddr, tmpPointer;
+
+        //do Output.printInt(endOfList);
+        let tmpPointer = endOfList[0];
+        let tmpPointer[0] = object - 2;        
+        //do Output.printInt(tmpPointer);
+        let endOfList = endOfList[0];
+        
+        return;
+    }    
+}
