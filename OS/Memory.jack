@@ -23,24 +23,47 @@ class Memory {
     }
 
     function int bestFit(int size) {
-        var int currentNode, minBlockAddress;
+        var int currentNode, minBlockAddress, tmpPointer;
+        var bool foundLowestBlock;
         
-        let minBlockAddress = freeList[0];
+        let minBlockAddress = freeList[0];        
         let currentNode = minBlockAddress;
+        //do Output.printInt(-13);
         //do Output.printInt(currentNode);
         while (currentNode > 0) {
-            // checks if currentNode.size >= block size + 2
-            if (~(currentNode[1] < size + 2)) {
+            // checks if currentNode.size >= block size
+            //do Output.printInt(currentNode[1]);
+            if (~(currentNode[1] < size)) {
+                //do Output.printInt(-4);
                 // tests for minimal block
                 //do Output.printInt(currentNode[1]);
-                if (currentNode[1] < minBlockAddress[1]) {
+                // changed this since freeList[1] no longer exists
+                if (~(currentNode[1] > minBlockAddress[1])) {
                     let minBlockAddress = currentNode;
+                    //do Output.printInt(minBlockAddress);
+                    //do Output.printInt(-3);
+                    let foundLowestBlock = true;
                 }
             }
-            let currentNode = currentNode[0]; // currentNode = *currentNode.next
+            let tmpPointer = currentNode;
+            let currentNode = currentNode[0]; // currentNode = *currentNode.next            
+            //do Output.printInt(-14);
             //do Output.printInt(currentNode);
         }
         
+        if (~foundLowestBlock) {
+            //do Output.printInt(-18);
+            let minBlockAddress = endOfList;
+        }
+        
+        /*
+        if (minBlockAddress = 0) {
+            //do Output.printInt(-12);    
+            let minBlockAddress = endOfList;
+        }
+        */
+        
+        //do Output.printInt(minBlockAddress);
         return minBlockAddress;
     }
 
@@ -63,29 +86,63 @@ class Memory {
         
         let freeBlockAddress = Memory.bestFit(size);
         let currentNode = freeList[0];
-        do Output.printInt(freeBlockAddress);
-        do Output.printInt(endOfList);
+        //do Output.printInt(-9);
+        //do Output.printInt(freeBlockAddress);
+        //do Output.printInt(endOfList);
 
         if (freeBlockAddress = endOfList) {
-            let freeList[0] = freeBlockAddress + (size + 2);        // updates freeList pointer to freeBlock size
-            let endOfList = freeList[0];                            // sets endOfList pointer to newly created freeList (heap free space)
-            //do Output.printInt(endOfList);
-            let endOfList[1] = heapBase[1] - endOfList;             // calculates free heap space, based on endOfList pointer value
-                        
-            let freeBlockAddress[0] = 0;                            // updates freeBlock pointer Val
-            let freeBlockAddress[1] = size;                         // updates freeBlock size value
+            //do Output.printInt(-17);
+            if (freeList[0] = freeBlockAddress) {                       // no intermediate freeList element
+                //do Output.printInt(-1);
+                let freeList[0] = freeBlockAddress + (size + 2);        // updates freeList pointer to freeBlock size
+                let endOfList = freeList[0];                            // sets endOfList pointer to newly created freeList (heap free space)
+                let endOfList[0] = 0;
+                let endOfList[1] = heapBase[1] - endOfList;             // calculates free heap space, based on endOfList pointer value
+                            
+                let freeBlockAddress[0] = 0;                            // updates freeBlock pointer Val
+                let freeBlockAddress[1] = size;                         // updates freeBlock size value
+            }
+            else {
+                //do Output.printInt(-7);
+                //do Output.printInt(endOfList);
+
+                while (~(currentNode[0] = freeBlockAddress)) {          // loop to get previous pointer of freeBlockAddress, "freeList.previous"
+                    let currentNode = currentNode[0];                   // updates pointer to get reference to currentNode.next
+                }
+                
+                /* updates current allocated block, pointed by endOfList */
+                let endOfList[0] = 0;
+                let endOfList[1] = size;                                // calculates free heap space, based on endOfList pointer value
+
+                let endOfList = freeBlockAddress + (size + 2);          // updates endOfList to forward heap address
+                let endOfList[0] = 0;
+                let endOfList[1] = heapBase[1] - endOfList;             // calculates free heap space, based on endOfList pointer value                
+                let currentNode[0] = endOfList;                         // updates list to point to newly free space heap max
+            }
         }
-        /*
         // update linked list
         else {
+            //do Output.printInt(-5);
+            //do Output.printInt(freeBlockAddress);
+            //do Output.printInt(currentNode);
+
+            // starts pointer to freeList base address;
+            let currentNode = freeList;
+
             while (~(currentNode[0] = freeBlockAddress)) {
-                let currentNode = currentNode[0];               // updates pointer to get reference to currentNode.next
+                let currentNode = currentNode[0];                   // updates pointer to get reference to currentNode.next
+                //do Output.printInt(currentNode);
             }
-            let tmpPointer = currentNode[0];
-            let tmpPointer = tmpPointer[0];
+            //do Output.printInt(-10);
+            if (currentNode = 0) {                                  // meaning it found the last position as possible
+
+            }
+            let tmpPointer = currentNode[0];                        // tmpPointer = currentNode.next
+            let tmpPointer = tmpPointer[0];                         // tmpPointer = *currentNode.next
+            let freeBlockAddress[0] = 0;                            // rewrites next pointer to 0, since it's been reallocated
             //do Output.printInt(tmpPointer);
             let currentNode[0] = tmpPointer;
-        }*/
+        }        
 
         return freeBlockAddress + 2;                           // returns the address for data portion of node, and ram[addr-1] has size, ram[add-2] has pointer
     }
@@ -95,12 +152,14 @@ class Memory {
     // appends block to freeList
     function void deAlloc(Array object) {
         var int tmpAddr, tmpPointer;
-
+        //do Output.printInt(-6);
         let tmpPointer = freeList[0];                           // *freeList, getting first heap available space value
+        //do Output.printInt(tmpPointer);
         let tmpAddr = object - 2;                               // gets baseAddress of object
-        let freeList[0] = tmpAddr;                              // sets *freeList to current object address
+        //do Output.printInt(tmpAddr);
         let tmpAddr[0] = tmpPointer;
-
+        let freeList[0] = tmpAddr;                              // sets *freeList to current object address
+        
         return;
     }    
 }
