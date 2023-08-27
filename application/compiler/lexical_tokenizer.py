@@ -75,16 +75,16 @@ class LexicalTokenizer:
                 "comments",
                 r"//.*|/\*(.|[\r\n])*?\*/",
             ),  # Gets comments till the end of line
+            ("skip", r"[\s\t\n]+"),  # Skip over spaces and tabs
             ("keyword", r"|".join(keywords)),
             ("symbol", r"|".join(symbols)),  # Assignment operator
             (
                 "mismatch_identifier",
-                r"[0-9]+[a-zA-Z0-9_]*",
+                r"[0-9]+[a-zA-Z_]+[0-9]*",
             ),  # Mismatched identifier, starting with a number
-            ("identifier", r"[a-zA-Z_]+[a-zA-Z0-9_]*"),  # Identifier
             ("integerConstant", r"\d+"),  # Integer number
-            ("stringConstant", r'"(.*)"'),  # Integer number
-            ("skip", r"[\s\t\n]+"),  # Skip over spaces and tabs
+            ("identifier", r"[a-zA-Z_0-9]+"),  # Identifier
+            ("stringConstant", r'"(.*)"'),  # String constant
             ("mismatch", r"."),  # Any other character
         ]
         tok_regex = "|".join(
@@ -98,16 +98,19 @@ class LexicalTokenizer:
 
             yield LexicToken(
                 result[0],
-                result[1],
+                result[1].replace('"', ""),
                 regex_match.start(0),
                 regex_match.end(0),
             )
 
 
 def main():
-    statements = """class 123_Point_99 {
-        var     a; // 1aaasasd
-        while
+    statements = """class Point_99 {
+        var     a = 8000; // 1aaasasd
+        var     b = "100";
+        while (a>b) {
+            return 0;
+        }
     }
     """
 
