@@ -71,10 +71,16 @@ class LexicalTokenizer:
         }
 
         token_specification = [
-            ("comments", r"//.*|/\*(.|[\r\n])*?\*/"),  # Gets comments till the end of line
+            (
+                "comments",
+                r"//.*|/\*(.|[\r\n])*?\*/",
+            ),  # Gets comments till the end of line
             ("keyword", r"|".join(keywords)),
             ("symbol", r"|".join(symbols)),  # Assignment operator
-            ("mismatch_identifier", r"[0-9]+[a-zA-Z0-9_]*"),  # Mismatched identifier, starting with a number
+            (
+                "mismatch_identifier",
+                r"[0-9]+[a-zA-Z0-9_]*",
+            ),  # Mismatched identifier, starting with a number
             ("identifier", r"[a-zA-Z_]+[a-zA-Z0-9_]*"),  # Identifier
             ("integerConstant", r"\d+"),  # Integer number
             ("stringConstant", r'"(.*)"'),  # Integer number
@@ -85,14 +91,11 @@ class LexicalTokenizer:
             f"(?P<{group_name}>{match})" for group_name, match in token_specification
         )
 
-        #print(tok_regex)
-
         for regex_match in re.finditer(tok_regex, self.code):
             result = [
                 (k, v) for k, v in regex_match.groupdict().items() if v is not None
             ][0]
 
-            print(result)            
             yield LexicToken(
                 result[0],
                 result[1],
@@ -113,8 +116,10 @@ def main():
     tokens = []
 
     for token in lex_tokenizer.tokenize():
-        if token.type in ['mismatch','mismatch_identifier']:
-            raise MismatchedValueError(f"Token error, input '{token.value}' at position ({token.start} to {token.end}) with type '{token.type}', check constraints!")
+        if token.type in ["mismatch", "mismatch_identifier"]:
+            raise MismatchedValueError(
+                f"Token error, input '{token.value}' at position ({token.start} to {token.end}) with type '{token.type}', check constraints!"
+            )
         if token.type != "skip":
             tokens.append(token)
 
