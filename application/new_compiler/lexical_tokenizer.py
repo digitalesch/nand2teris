@@ -5,9 +5,9 @@ import re
 @dataclass
 class LexicToken:
     type: str
-    value: str
-    start: int
-    end: int
+    value: str = None
+    start: int = 0
+    end: int = 0
 
 
 @dataclass
