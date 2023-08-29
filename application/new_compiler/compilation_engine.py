@@ -78,6 +78,7 @@ class CompilationEngine():
         self.check_syntax_token(self.advance_token(),[LexicToken(type='identifier',value='')])
         self.check_syntax_token(self.advance_token(),[LexicToken(type='symbol',value='{')])
         self.compile_class_var_dec()
+        self.compile_subroutine_dec()
         self.check_syntax_token(self.current_token,[LexicToken(type='symbol',value='}')])
         
     # (',' varName)*;
@@ -112,7 +113,7 @@ class CompilationEngine():
                     LexicToken(type='keyword',value='boolean'),
                     LexicToken(type='identifier')
                 ]
-            ),
+            )
             self.check_syntax_token(self.advance_token(),[LexicToken(type='identifier')])
             # continues checking if any there are other classVarDec*
             self.advance_token()
@@ -128,7 +129,51 @@ class CompilationEngine():
                 self.compile_var_name_list()
                 # checks -> ((static | field) type varName (',' varName)*;)*
                 self.compile_class_var_dec()
-        
+
+    # ((type varName) (',' type varName)*)?
+    def compile_parameter_list(self):
+        self.advance_token()
+        # checks if the current token is closing bracket ')', finishing the compilation
+        if not self.compare_tokens(self.current_token,[LexicToken(type='symbol',value=')')]):
+            pass
+        print(self.current_token)
+
+
+    # ('constructor' | 'function' | 'method') ('void' | type) subroutineName '(' parameterList ')' subroutineBody
+    def compile_subroutine_dec(self):
+        #self.advance_token()
+        print(self.current_token)
+        # checks ('constructor' | 'function' | 'method')
+        if self.compare_tokens(
+            self.current_token,
+            [
+                LexicToken(type='keyword',value='function'),
+                LexicToken(type='keyword',value='constructor'),
+                LexicToken(type='keyword',value='method')
+            ]
+        ):
+            self.check_syntax_token(
+                self.current_token,
+                [
+                    LexicToken(type='keyword',value='function'),
+                    LexicToken(type='keyword',value='constructor'),
+                    LexicToken(type='keyword',value='method')
+                ]
+            )
+            # checks ('void' | type)
+            self.check_syntax_token(
+                self.advance_token(),
+                [
+                    LexicToken(type='keyword',value='void'),
+                    LexicToken(type='identifier')
+                ]
+            )
+            self.check_syntax_token(self.advance_token(),[LexicToken(type='identifier')])
+            self.check_syntax_token(self.advance_token(),[LexicToken(type='symbol',value='(')])
+            self.compile_parameter_list()
+            self.check_syntax_token(self.current_token,[LexicToken(type='symbol',value=')')])
+            self.check_syntax_token(self.advance_token(),[LexicToken(type='symbol',value='{')])
+            self.check_syntax_token(self.advance_token(),[LexicToken(type='symbol',value='}')])
 
 def main():
     arguments_list = [
