@@ -8,6 +8,11 @@
  * Note: Jack compilers implement multiplication and division using OS method calls.
  */
 class _Math {
-    static int p1, p2, p3;
+    static teste p1, p2, p3;
     field int t1, t2, t3;
+
+    /** Initializes the library. */
+    function void init() {
+
+    }
 }
