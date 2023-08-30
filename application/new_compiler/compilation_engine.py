@@ -254,7 +254,6 @@ class CompilationEngine:
 
     # letStatement: 'let' varName ('[' expression ']')? '=' expression ';'
     def compile_let_statement(self):
-        print(self.current_token)
         self.check_syntax_token(
             self.current_token, [LexicToken(type="keyword", value="let")]
         )
@@ -280,7 +279,6 @@ class CompilationEngine:
         self.check_syntax_token(
             self.advance_token(), [LexicToken(type="symbol", value=";")]
         )
-        print(self.current_token)
 
     # ifStatement
     def compile_if_statement(self):
@@ -328,10 +326,13 @@ class CompilationEngine:
 
     # statement*
     def compile_statements(self):
+        print(self.current_token)
         if not self.compare_tokens(
-            self.advance_token(), [LexicToken(type="symbol", value="}")]
+            self.current_token, [LexicToken(type="symbol", value="}")]
         ):
             self.compile_statement()
+            self.advance_token()
+            self.compile_statements()
 
     # '{' varDec* statements '}'
     def compile_subroutine_body(self):
@@ -340,7 +341,9 @@ class CompilationEngine:
         )
         self.compile_var_dec()
         self.compile_statements()
-        # self.check_syntax_token(self.current_token,[LexicToken(type='symbol',value='}')])
+        self.check_syntax_token(
+            self.advance_token(), [LexicToken(type="symbol", value="}")]
+        )
 
     # ('constructor' | 'function' | 'method') ('void' | type) subroutineName '(' parameterList ')' subroutineBody
     def compile_subroutine_dec(self):
