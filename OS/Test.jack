@@ -12,7 +12,11 @@ class _Math {
     field int t1, t2, t3;
 
     /** Initializes the library. */
-    function void init() {
-
+    function void init(int a, int b) {
+        var int teste, t2;
+        var char t;
+        var teste t3;
+        //let teste[2] = 5;
+        //let teste[2] = 4;
     }
 }
